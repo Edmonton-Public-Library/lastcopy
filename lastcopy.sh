@@ -30,58 +30,110 @@
 # ***           Edit these to suit your environment               *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
-VERSION=0.1
 TMP=$(getpathname tmp)
-WORKING_DIR=$(pwd)
+WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
+VERSION="0.00.01"
+DB_SERIES=series.db
+DB_HICIRC=hicirc.db
+MIN_CHARGES=20
+LOG=$WORKING_DIR/lastcopy.log
 ###############################################################################
 # Display usage message.
 # param:  none
 # return: none
 usage()
 {
-	printf "Usage: %s [-option]\n" "$0" >&2
-	printf " Description of what the application does, and how to use it.\n" >&2
-	printf "   Version: %s\n" $VERSION >&2
+    cat << EOFU!
+Usage: $0 [-option]
+  Application to collect data for last copy.
+
+  This application produces data that is used by acquisitions to reorder material before it is discarded.
+
+  -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
+  -h, --help: display usage message and exit.
+  -v, --version: display application version and exit.
+  -x, --xhelp: display usage message and exit.
+
+  Version: $VERSION
+EOFU!
 	exit 1
 }
-
-# Asks if user would like to do what the message says.
-# param:  message string.
-# return: 0 if the answer was yes and 1 otherwise.
-confirm()
+# Logs messages to STDOUT and $LOG file.
+# param:  Message to put in the file.
+# param:  (Optional) name of a operation that called this function.
+logit()
 {
-	if [ -z "lastcopy" ]; then
-		echo "** error, confirm_yes requires a message." >&2
-		exit 
-	fi
-	local message="lastcopy"
-	read -p "? y/[n]: " answer < /dev/tty
-	case "" in
-		[yY])
-			echo "yes selected." >&2
-			echo 
-			;;
-		*)
-			echo "no selected." >&2
-			echo 
-			;;
-	esac
+    local message="$1"
+    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    if [ -t 0 ]; then
+        # If run from an interactive shell message STDOUT and LOG.
+        echo -e "[$time] $message" | tee -a $LOG
+    else
+        # If run from cron do write to log.
+        echo -e "[$time] $message" >>$LOG
+    fi
 }
 
-# Argument processing.
-while getopts ":a:x" opt; do
-  case $opt in
-	a)	echo "-a triggered with '$OPTARG'\n" >&2
+# Produces cat keys whose items have more than $MIN_CHARGES 
+charges()
+{
+	HIGH_CIRC_KEYS=highcirctitles.lst
+	# Create the database
+	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT,total INT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+	# Select all items but do it from the cat keys because selitem 
+	# reports items with seq. and copy numbers that don't exist.
+	# To fix that select all the titles, then ask selitem to output
+	# all the items on the title.
+	selcatalog -oC 2>/dev/null | selitem -iC -oId 2>/dev/null | pipe.pl -oc0,c3 | awk -f hicirc.awk >$WORKING_DIR/hicirc.sql 
+	cat hicirc.sql | sqlite3 $WORKING_DIR/$DB_HICIRC
+	# Find all the cat keys who's items all have more than 
+	# $MIN_CHARGES charges.
+	echo "select ckey from Charges group by ckey having min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HIGH_CIRC_KEYS
+}
+
+### End of function declarations
+
+logit "== starting $0 version: $VERSION"
+### Check input parameters.
+# $@ is all command line parameters passed to the script.
+# -o is for short options like -v
+# -l is for long options with double dash like --version
+# the comma separates different long options
+# -a is for long options with single dash like -version
+options=$(getopt -l "charges:,help,version,xhelp" -o "chvx" -a -- "$@")
+if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
+# set --:
+# If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
+# are set to the arguments, even if some of them begin with a ‘-’.
+eval set -- "$options"
+while true
+do
+    case $1 in
+    -c|--charges)
+		shift
+        logit "compile titles with min charges $1"
+		MIN_CHARGES=$1
+		charges
 		;;
-	x)	usage
-		;;
-	\?)	echo "Invalid option: -$OPTARG" >&2
-		usage
-		;;
-	:)	echo "Option -$OPTARG requires an argument." >&2
-		usage
-		;;
-  esac
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    -v|--version)
+        echo "$0 version: $VERSION"
+        exit 0
+        ;;
+    -x|--xhelp)
+        usage
+        exit 0
+        ;;
+    --)
+        shift
+        break
+        ;;
+    esac
+    shift
 done
+logit "== done =="
 exit 0
 # EOF

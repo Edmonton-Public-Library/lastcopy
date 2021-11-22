@@ -31,12 +31,10 @@
 PRODUCTION_SERVER=edpl.sirsidynix.net
 TEST_SERVER=edpltest.sirsidynix.net
 USER=sirsi
-REMOTE=~/Unicorn/EPLwork/anisbet/
-LOCAL=~/projects/lastcopy/
-APP=lastcopy.sh
+REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
+LOCAL=~/projects/lastcopy
+APP=lastcopy.sh hicirc.awk
 
-test:
-	scp ${LOCAL}${APP} ${USER}@${TEST_SERVER}:${REMOTE}
-production: test
-	scp ${LOCAL}${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
+production: 
+	scp ${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
 
