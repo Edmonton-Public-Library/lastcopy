@@ -14,7 +14,7 @@ A title is at risk if it can be catagorized by any of the following.
 ## Pinch points in this process
 Several problems occur while trying to determine if a title is a risk.
 - Series titles are not cataloged consistently.
-- Series titles may use 490, and less frequently the 830 tag to indicate volumes.
+- Series titles may use 490, and less frequently 830 tags to indicate volumes.
 - Titles may have more than one record, one of which is fine, but the other is at risk. These records should be identified to be merged.
 
 # Project Notes

@@ -32,7 +32,7 @@
 ###############################################################################
 TMP=$(getpathname tmp)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.01.06"
+VERSION="0.02.00"
 DB_SERIES=series.db
 DB_HICIRC=hicirc.db
 MIN_CHARGES=20
@@ -75,6 +75,7 @@ logit()
         echo -e "[$time] $message" >>$LOG
     fi
 }
+# Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
@@ -98,13 +99,13 @@ charges()
     [ -f "$WORKING_DIR/$DB_HICIRC" ] && rm $WORKING_DIR/$DB_HICIRC
 	# Create the database
     [ $DEBUG == true ] && logit "creating database"
-	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds, tholds);" | sqlite3 $WORKING_DIR/$DB_HICIRC
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
 	[ $DEBUG == true ] && logit "creating SQL from catalog selection"
-	selcatalog -oC 2>/dev/null | selitem -iC -oIdmt 2>/dev/null | awk -f hicirc.awk >$sql 
+	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f hicirc.awk >$sql 
     [ $DEBUG == true ] && logit "done"
     [ -s "$sql" ] || logerr "no sql statements were generated."
     [ $DEBUG == true ] && logit "loading data"
@@ -123,7 +124,7 @@ charges()
 	echo "SELECT ckey FROM Charges GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$output_list
     [ -s "$output_list" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
     [ $DEBUG == true ] && logit "done"
-    ## Clean up the database perhaps optionally.
+    ## @TODO Clean up the database perhaps optionally.
     # [ $DEBUG == false ] && rm $WORKING_DIR/$DB_HICIRC
     logit "hi-circ list $output_list created"
 }
