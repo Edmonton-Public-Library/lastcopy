@@ -32,7 +32,7 @@
 ###############################################################################
 TMP=$(getpathname tmp)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.01.01"
+VERSION="0.01.06"
 DB_SERIES=series.db
 DB_HICIRC=hicirc.db
 MIN_CHARGES=20
@@ -98,29 +98,33 @@ charges()
     [ -f "$WORKING_DIR/$DB_HICIRC" ] && rm $WORKING_DIR/$DB_HICIRC
 	# Create the database
     [ $DEBUG == true ] && logit "creating database"
-	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT,total INT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
 	[ $DEBUG == true ] && logit "creating SQL from catalog selection"
-	selcatalog -oC 2>/dev/null | selitem -iC -oId 2>/dev/null | pipe.pl -oc0,c3 | awk -f hicirc.awk >$sql 
+	selcatalog -oC 2>/dev/null | selitem -iC -oIdmt 2>/dev/null | awk -f hicirc.awk >$sql 
     [ $DEBUG == true ] && logit "done"
-    if [ ! -s "$sql" ]; then logerr "no sql statements were generated."; fi
+    [ -s "$sql" ] || logerr "no sql statements were generated."
     [ $DEBUG == true ] && logit "loading data"
 	cat $sql | sqlite3 $WORKING_DIR/$DB_HICIRC
     [ $DEBUG == true ] && logit "done"
-    [ $DEBUG == true ] && logit "adding index."
+    [ $DEBUG == false ] && rm $sql
+    [ $DEBUG == true ] && logit "adding indexes."
     echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Charges (ckey);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Charges (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_itype ON Charges (itype);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Charges (cloc);" | sqlite3 $WORKING_DIR/$DB_HICIRC
     [ $DEBUG == true ] && logit "done"
 	# Find all the cat keys who's items all have more than 
 	# $MIN_CHARGES charges.
     [ $DEBUG == true ] && logit "starting selection query"
-    if [ ! -s "$output_list" ]; then logerr "no sql statements were generated."; fi
 	echo "SELECT ckey FROM Charges GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$output_list
+    [ -s "$output_list" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
     [ $DEBUG == true ] && logit "done"
     ## Clean up the database perhaps optionally.
-    # [ ! $DEBUG ] && rm $WORKING_DIR/$DB_HICIRC
+    # [ $DEBUG == false ] && rm $WORKING_DIR/$DB_HICIRC
     logit "hi-circ list $output_list created"
 }
 
