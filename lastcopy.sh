@@ -32,7 +32,7 @@
 ###############################################################################
 TMP=$(getpathname tmp)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.03.00"
+VERSION="0.03.02"
 DB_SERIES=series.db
 DB_HICIRC=hicirc.db
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -110,26 +110,23 @@ collect_item_info()
         fi
     fi
 	# Create the database
-    [ $DEBUG == true ] && logit "creating database"
+    logit "creating database"
 	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
-	[ $DEBUG == true ] && logit "creating SQL from catalog selection"
+	logit "creating SQL from catalog selection"
 	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f hicirc.awk >$sql 
-    [ $DEBUG == true ] && logit "done"
     [ -s "$sql" ] || logerr "no sql statements were generated."
-    [ $DEBUG == true ] && logit "loading data"
+    logit "loading data"
 	cat $sql | sqlite3 $WORKING_DIR/$DB_HICIRC
-    [ $DEBUG == true ] && logit "done"
-    [ $DEBUG == false ] && rm $sql
-    [ $DEBUG == true ] && logit "adding indexes."
+    [ -s "$sql" ] && rm $sql
+    logit "adding indexes."
     echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Items (ckey);" | sqlite3 $WORKING_DIR/$DB_HICIRC
     echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Items (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_HICIRC
     echo "CREATE INDEX IF NOT EXISTS idx_itype ON Items (itype);" | sqlite3 $WORKING_DIR/$DB_HICIRC
     echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Items (cloc);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    [ $DEBUG == true ] && logit "done"
 }
 
 ### End of function declarations
@@ -162,8 +159,6 @@ do
         echo "SELECT ckey FROM Items GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HICIRC_CKEY_LIST
         [ -s "$HICIRC_CKEY_LIST" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
         [ $DEBUG == true ] && logit "done"
-        ## @TODO Clean up the database perhaps optionally.
-        # [ $DEBUG == false ] && rm $WORKING_DIR/$DB_HICIRC
         logit "hi-circ list $HICIRC_CKEY_LIST created"
 		;;
     -d|--debug)
