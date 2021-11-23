@@ -7,6 +7,7 @@ BEGIN {
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
+    # The Test ILS seems to need smaller chunks.
     max_query_lines = 150;
 }
 
