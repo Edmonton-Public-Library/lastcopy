@@ -35,6 +35,8 @@ REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
 LOCAL=~/projects/lastcopy
 APP=lastcopy.sh hicirc.awk
 
+test: 
+	scp ${APP} ${USER}@${TEST_SERVER}:${REMOTE}
 production: 
 	scp ${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
 

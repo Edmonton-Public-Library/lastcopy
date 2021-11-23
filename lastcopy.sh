@@ -84,11 +84,12 @@ charges()
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
+	## @TODO fix so the entries are batch loaded like inactiveholds2.0
 	selcatalog -oC 2>/dev/null | selitem -iC -oId 2>/dev/null | pipe.pl -oc0,c3 | awk -f hicirc.awk >$WORKING_DIR/hicirc.sql 
-	cat hicirc.sql | sqlite3 $WORKING_DIR/$DB_HICIRC
+	cat $WORKING_DIR/hicirc.sql | sqlite3 $WORKING_DIR/$DB_HICIRC
 	# Find all the cat keys who's items all have more than 
 	# $MIN_CHARGES charges.
-	echo "select ckey from Charges group by ckey having min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HIGH_CIRC_KEYS
+	echo "SELECT ckey FROM Charges GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HIGH_CIRC_KEYS
 }
 
 ### End of function declarations

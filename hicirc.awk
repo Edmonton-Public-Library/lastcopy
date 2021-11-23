@@ -1,14 +1,34 @@
 #!usr/bin/env awk
-BEGIN{
+
+## Create sql insert statements for hicirc counts on titles.
+BEGIN {
     FS="|";
-    print"INSERT INTO Charges (ckey,total) VALUES ";
+    insertStatement = "INSERT INTO Charges (ckey,total) VALUES ";
+    print "BEGIN TRANSACTION;"
+    print insertStatement;
+    count = -1;
+    max_query_lines = 150;
 }
+
 
 # For any non-empty entry print the values to insert to the Charges table.
 /^[0-9]/ {
-    print "("$1","$2"),";
-}
+    if (count == max_query_lines) {
+        count = 0;
+        printf ";\nEND TRANSACTION;\nBEGIN TRANSACTION;\n" insertStatement "\n";
+    } 
+    if (count > 0){
+        printf ",\n";
+    }
+    # ckey,total charges
+    printf "(%d,%d)",$1,$2;
+    if (count == -1){
+        printf ",\n";
+    }
+    count++;
+} 
 
-END{
-    print "(0,0);";
+END {
+    print ";";
+    print "END TRANSACTION;";
 }
