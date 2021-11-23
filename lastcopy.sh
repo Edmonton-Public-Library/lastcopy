@@ -32,9 +32,10 @@
 ###############################################################################
 TMP=$(getpathname tmp)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.02.00"
+VERSION="0.03.00"
 DB_SERIES=series.db
 DB_HICIRC=hicirc.db
+HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
 MIN_CHARGES=20
 DEBUG=false
 LOG=$WORKING_DIR/lastcopy.log
@@ -49,6 +50,8 @@ Usage: $0 [-option]
   Application to collect data for last copy.
 
   This application produces data that is used by acquisitions to reorder material before it is discarded.
+
+  The database is automatically rebuilt if it is more than a day old.
 
   -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
   -d, --debug turn on debug logging.
@@ -91,15 +94,24 @@ logerr()
 }
 
 # Produces cat keys whose items have more than $MIN_CHARGES 
-charges()
+collect_item_info()
 {
-    local output_list=$WORKING_DIR/highcirctitles.lst
     local sql=$WORKING_DIR/hicirc.sql
-    ## Clean up any pre-existing database.
-    [ -f "$WORKING_DIR/$DB_HICIRC" ] && rm $WORKING_DIR/$DB_HICIRC
+    ## Clean up any pre-existing database if it is more than a day old.
+    if [ -f "$WORKING_DIR/$DB_HICIRC" ]; then
+        local yesterday=$(date -d 'now - 1 days' +%s)
+        local db_age=$(date -r "$WORKING_DIR/$DB_HICIRC" +%s)
+        if (( db_age <= yesterday )); then
+            rm $WORKING_DIR/$DB_HICIRC
+        else
+            # keep fresh database.
+            logit "database is less than a day old, nothing to do."
+            return
+        fi
+    fi
 	# Create the database
     [ $DEBUG == true ] && logit "creating database"
-	echo "CREATE TABLE IF NOT EXISTS Charges (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds, tholds);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
@@ -113,25 +125,19 @@ charges()
     [ $DEBUG == true ] && logit "done"
     [ $DEBUG == false ] && rm $sql
     [ $DEBUG == true ] && logit "adding indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Charges (ckey);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Charges (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_itype ON Charges (itype);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Charges (cloc);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Items (ckey);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Items (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_itype ON Items (itype);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Items (cloc);" | sqlite3 $WORKING_DIR/$DB_HICIRC
     [ $DEBUG == true ] && logit "done"
-	# Find all the cat keys who's items all have more than 
-	# $MIN_CHARGES charges.
-    [ $DEBUG == true ] && logit "starting selection query"
-	echo "SELECT ckey FROM Charges GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$output_list
-    [ -s "$output_list" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
-    [ $DEBUG == true ] && logit "done"
-    ## @TODO Clean up the database perhaps optionally.
-    # [ $DEBUG == false ] && rm $WORKING_DIR/$DB_HICIRC
-    logit "hi-circ list $output_list created"
 }
 
 ### End of function declarations
 
 logit "== starting $0 version: $VERSION"
+logit "testing freshness of item information"
+collect_item_info
+
 ### Check input parameters.
 # $@ is all command line parameters passed to the script.
 # -o is for short options like -v
@@ -149,9 +155,16 @@ do
     case $1 in
     -c|--charges)
 		shift
-        logit "compile titles with min charges $1"
+        logit "compile cat keys where all items have $1 minimum charges"
 		MIN_CHARGES=$1
-		charges
+        # Find all the cat keys who's items all have more than $MIN_CHARGES charges.
+        [ $DEBUG == true ] && logit "starting selection query"
+        echo "SELECT ckey FROM Items GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HICIRC_CKEY_LIST
+        [ -s "$HICIRC_CKEY_LIST" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
+        [ $DEBUG == true ] && logit "done"
+        ## @TODO Clean up the database perhaps optionally.
+        # [ $DEBUG == false ] && rm $WORKING_DIR/$DB_HICIRC
+        logit "hi-circ list $HICIRC_CKEY_LIST created"
 		;;
     -d|--debug)
         logit "turning on debugging"

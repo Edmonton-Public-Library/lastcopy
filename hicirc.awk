@@ -3,7 +3,7 @@
 ## Create sql insert statements for hicirc counts on titles.
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO Charges (ckey, callnum, cpnum, total, cloc, itype, cholds, tholds) VALUES ";
+    insertStatement = "INSERT OR IGNORE INTO Items (ckey, callnum, cpnum, total, cloc, itype, cholds, tholds) VALUES ";
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
@@ -12,7 +12,7 @@ BEGIN {
 }
 
 
-# For any non-empty entry print the values to insert to the Charges table.
+# For any non-empty entry print the values to insert to the Items table.
 /^[0-9]/ {
     if (count == max_query_lines) {
         count = 0;
