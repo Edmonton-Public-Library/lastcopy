@@ -3,7 +3,7 @@
 ## Create sql insert statements for hicirc counts on titles.
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO Items (ckey, callnum, cpnum, total, cloc, itype, cholds, tholds) VALUES ";
+    insertStatement = "INSERT OR IGNORE INTO Items (ckey, callnum, cpnum, ckos, cloc, itype, cholds, tholds) VALUES ";
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
@@ -21,7 +21,7 @@ BEGIN {
     if (count > 0){
         printf ",\n";
     }
-    # ckey,total charges
+    # ckey,ckos - total charges
     printf "(%d, %d, %d, %d,'%s','%s', %d, %d)",$1,$2,$3,$4,$5,$6,$7,$8;
     if (count == -1){
         printf ",\n";

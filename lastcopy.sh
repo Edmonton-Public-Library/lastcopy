@@ -30,11 +30,10 @@
 # ***           Edit these to suit your environment               *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
-TMP=$(getpathname tmp)
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.03.02"
+VERSION="0.04.00"
 DB_SERIES=series.db
-DB_HICIRC=hicirc.db
+DB_ITEMS=items.db
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
 MIN_CHARGES=20
 DEBUG=false
@@ -98,11 +97,11 @@ collect_item_info()
 {
     local sql=$WORKING_DIR/hicirc.sql
     ## Clean up any pre-existing database if it is more than a day old.
-    if [ -f "$WORKING_DIR/$DB_HICIRC" ]; then
+    if [ -f "$WORKING_DIR/$DB_ITEMS" ]; then
         local yesterday=$(date -d 'now - 1 days' +%s)
-        local db_age=$(date -r "$WORKING_DIR/$DB_HICIRC" +%s)
+        local db_age=$(date -r "$WORKING_DIR/$DB_ITEMS" +%s)
         if (( db_age <= yesterday )); then
-            rm $WORKING_DIR/$DB_HICIRC
+            rm $WORKING_DIR/$DB_ITEMS
         else
             # keep fresh database.
             logit "database is less than a day old, nothing to do."
@@ -111,7 +110,7 @@ collect_item_info()
     fi
 	# Create the database
     logit "creating database"
-	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, ckos INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);" | sqlite3 $WORKING_DIR/$DB_ITEMS
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
@@ -120,13 +119,13 @@ collect_item_info()
 	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f hicirc.awk >$sql 
     [ -s "$sql" ] || logerr "no sql statements were generated."
     logit "loading data"
-	cat $sql | sqlite3 $WORKING_DIR/$DB_HICIRC
+	cat $sql | sqlite3 $WORKING_DIR/$DB_ITEMS
     [ -s "$sql" ] && rm $sql
     logit "adding indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Items (ckey);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Items (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_itype ON Items (itype);" | sqlite3 $WORKING_DIR/$DB_HICIRC
-    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Items (cloc);" | sqlite3 $WORKING_DIR/$DB_HICIRC
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON Items (ckey);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Items (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+    echo "CREATE INDEX IF NOT EXISTS idx_itype ON Items (itype);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Items (cloc);" | sqlite3 $WORKING_DIR/$DB_ITEMS
 }
 
 ### End of function declarations
@@ -156,7 +155,7 @@ do
 		MIN_CHARGES=$1
         # Find all the cat keys who's items all have more than $MIN_CHARGES charges.
         [ $DEBUG == true ] && logit "starting selection query"
-        echo "SELECT ckey FROM Items GROUP BY ckey HAVING min(total) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_HICIRC >$HICIRC_CKEY_LIST
+        echo "SELECT ckey FROM Items GROUP BY ckey HAVING min(ckos) >= $MIN_CHARGES;" | sqlite3 $WORKING_DIR/$DB_ITEMS >$HICIRC_CKEY_LIST
         [ -s "$HICIRC_CKEY_LIST" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
         [ $DEBUG == true ] && logit "done"
         logit "hi-circ list $HICIRC_CKEY_LIST created"
