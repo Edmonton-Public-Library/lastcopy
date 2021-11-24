@@ -31,7 +31,7 @@
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.04.00"
+VERSION="0.05.00"
 DB_SERIES=series.db
 DB_ITEMS=items.db
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -110,13 +110,13 @@ collect_item_info()
     fi
 	# Create the database
     logit "creating database"
-	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, ckos INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+	echo "CREATE TABLE IF NOT EXISTS Items (ckey INT, callnum INT, cpnum INT, ckos INT, cloc TEXT, itype TEXT, cholds INT, tholds INT, lactive TEXT, lcharged TEXT);" | sqlite3 $WORKING_DIR/$DB_ITEMS
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
 	logit "creating SQL from catalog selection"
-	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f items.awk >$sql 
+	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthSan 2>/dev/null | awk -f items.awk >$sql 
     [ -s "$sql" ] || logerr "no sql statements were generated."
     logit "loading data"
 	cat $sql | sqlite3 $WORKING_DIR/$DB_ITEMS
@@ -126,6 +126,8 @@ collect_item_info()
     echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON Items (ckey, callnum);" | sqlite3 $WORKING_DIR/$DB_ITEMS
     echo "CREATE INDEX IF NOT EXISTS idx_itype ON Items (itype);" | sqlite3 $WORKING_DIR/$DB_ITEMS
     echo "CREATE INDEX IF NOT EXISTS idx_cloc ON Items (cloc);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+    echo "CREATE INDEX IF NOT EXISTS idx_lactive ON Items (lactive);" | sqlite3 $WORKING_DIR/$DB_ITEMS
+    echo "CREATE INDEX IF NOT EXISTS idx_lcharged ON Items (lcharged);" | sqlite3 $WORKING_DIR/$DB_ITEMS
 }
 
 ### End of function declarations
