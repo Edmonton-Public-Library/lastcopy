@@ -95,7 +95,7 @@ logerr()
 # Produces cat keys whose items have more than $MIN_CHARGES 
 collect_item_info()
 {
-    local sql=$WORKING_DIR/hicirc.sql
+    local sql=$WORKING_DIR/items.sql
     ## Clean up any pre-existing database if it is more than a day old.
     if [ -f "$WORKING_DIR/$DB_ITEMS" ]; then
         local yesterday=$(date -d 'now - 1 days' +%s)
@@ -116,7 +116,7 @@ collect_item_info()
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
 	logit "creating SQL from catalog selection"
-	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f hicirc.awk >$sql 
+	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthS 2>/dev/null | awk -f items.awk >$sql 
     [ -s "$sql" ] || logerr "no sql statements were generated."
     logit "loading data"
 	cat $sql | sqlite3 $WORKING_DIR/$DB_ITEMS
