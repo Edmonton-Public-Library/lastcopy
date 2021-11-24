@@ -33,7 +33,7 @@ TEST_SERVER=edpltest.sirsidynix.net
 USER=sirsi
 REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
 LOCAL=~/projects/lastcopy
-APP=lastcopy.sh hicirc.awk Readme.md
+APP=lastcopy.sh items.awk Readme.md
 
 test: 
 	scp ${APP} ${USER}@${TEST_SERVER}:${REMOTE}
