@@ -25,8 +25,56 @@ CREATE INDEX idx_ckey_callnum ON Items (ckey, callnum);
 CREATE INDEX idx_itype ON Items (itype);
 CREATE INDEX idx_cloc ON Items (cloc);
 ```
-## Count circulating copies query
+Modified
 ```sql
+CREATE TABLE IF NOT EXISTS catalog_titles (
+    id INT PRIMARY KEY NOT NULL, -- This is the cat key
+    title VARCHAR 255 NOT NULL,
+    author VARCHAR 255,
+    publication_year INT
+);
+
+CREATE TABLE IF NOT EXISTS catalog_items (
+    catalog_title_id INT,
+    call_number INT,
+    copy_number INT,
+    checkouts INT,
+    current_location VARCHAR (25),
+    item_type VARCHAR (25),
+    copy_holds INT,
+    title_holds INT,
+    last_active DATE,
+    last_charged DATE,
+    bar_code INT PRIMARY KEY,
+    FOREIGN KEY (catalog_title_id)
+        REFERENCES catalog_titles (id)
+        ON UPDATE RESTRICT
+        ON DELETE RESTRICT
+);
+```
+
+
+## Grubby List
+List the titles and total checkouts where all the items have 80 or more charges.
+```sql
+select ckey,sum(ckos) from Items group by ckey having min(ckos) >= 80;
+```
+
+## Count circulating copies query
+List the ckeys where the total circulatable items are 0 or 1.
+```sql
+select ckey, (
+    select count(cloc) 
+    from Items 
+    where ckey=I.ckey and cloc not in (
+        'DISCARD','STOLEN','DAMAGE','MISSING','UNKNOWN',
+        'BINDERY','LOST','LOST-ASSUM','LOST-CLAIM','NOF',
+        'NON-ORDER','CANC_ORDER','INCOMPLETE'
+    )
+) IC from Items as I 
+where IC <= 1 
+group by ckey 
+ORDER BY IC ASC;
 ```
 
 # Instructions for Running:
