@@ -3,7 +3,7 @@
 ## Create sql insert statements for hicirc counts on titles.
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO Items (ckey, callnum, cpnum, ckos, cloc, itype, cholds, tholds, lactive, lcharged) VALUES ";
+    insertStatement = "INSERT OR IGNORE INTO catalog_items (catalog_title_id, call_number, copy_number, checkouts, current_location, item_type, copy_holds, title_holds, last_active, last_charged, id) VALUES ";
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
@@ -29,7 +29,7 @@ BEGIN {
         year = substr($9,1,4);
         month= substr($9,5,2);
         day  = substr($9,7);
-        last_active = sprintf("%d-%d-%d",year,month,day);
+        last_active = sprintf("%d-%02d-%02d",year,month,day);
     }
     last_charged = default_date;
     if (length($10) == 8){
@@ -37,11 +37,11 @@ BEGIN {
         year = substr($10,1,4);
         month= substr($10,5,2);
         day  = substr($10,7);
-        last_charged = sprintf("%d-%d-%d",year,month,day);
+        last_charged = sprintf("%d-%02d-%02d",year,month,day);
     }
 
     # ckey,ckos - total charges
-    printf "(%d, %d, %d, %d,'%s','%s', %d, %d, '%s','%s')",$1,$2,$3,$4,$5,$6,$7,$8,last_active,last_charged;
+    printf "(%d, %d, %d, %d,'%s','%s', %d, %d, '%s','%s', %d)",$1,$2,$3,$4,$5,$6,$7,$8,last_active,last_charged,$11;
     if (count == -1){
         printf ",\n";
     }
