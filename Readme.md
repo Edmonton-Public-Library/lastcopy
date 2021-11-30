@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS catalog_titles (
 );
 
 CREATE TABLE IF NOT EXISTS catalog_items (
+    id INT PRIMARY KEY, -- Bar code.
     catalog_title_id INT,
     call_number INT,
     copy_number INT,
@@ -45,7 +46,6 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     title_holds INT,
     last_active DATE,
     last_charged DATE,
-    bar_code INT PRIMARY KEY,
     FOREIGN KEY (catalog_title_id)
         REFERENCES catalog_titles (id)
         ON UPDATE RESTRICT
