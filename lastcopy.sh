@@ -31,7 +31,7 @@
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.06.04"
+VERSION="0.06.05"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -164,6 +164,8 @@ collect_item_info()
             logit "database is less than a day old, nothing to do."
             return
         fi
+    else
+        touch $LAST_RUN
     fi
     # Name of the scratch SQL insert commands.
     local sql=$WORKING_DIR/items.sql
