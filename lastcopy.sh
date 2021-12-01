@@ -31,7 +31,7 @@
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.06.05"
+VERSION="0.07.01"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -120,6 +120,15 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     last_active TEXT, 
     last_charged TEXT
 );
+CREATE TABLE IF NOT EXISTS catalog_titles (
+    id INT PRIMARY KEY NOT NULL, -- This is the cat key
+    tcn TEXT NOT NULL,
+    author TEXT,
+    title TEXT,
+    publication_year INT,
+    t_380 TEXT,
+    t_490 TEXT
+);
 END_SQL
     else
         ### MySQL version.
@@ -140,6 +149,15 @@ CREATE TABLE IF NOT EXISTS catalog_items (
         REFERENCES catalog_titles (id)
         ON UPDATE RESTRICT
         ON DELETE RESTRICT
+);
+CREATE TABLE IF NOT EXISTS catalog_titles (
+    id INT PRIMARY KEY NOT NULL, -- This is the cat key
+    tcn VARCHAR (64) NOT NULL,
+    author VARCHAR (125),
+    title VARCHAR (255),
+    publication_year INT,
+    t_380 VARCHAR (64),
+    t_490 VARCHAR (64)
 );
 END_SQL
     fi
@@ -168,20 +186,27 @@ collect_item_info()
         touch $LAST_RUN
     fi
     # Name of the scratch SQL insert commands.
-    local sql=$WORKING_DIR/items.sql
+    local sql=$WORKING_DIR/catalog_info.sql
     
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
 	# To fix that select all the titles, then ask selitem to output
 	# all the items on the title.
-	logit "creating SQL from catalog selection"
+	logit "creating item info SQL"
     [ -s "$WORKING_DIR/items.awk" ] || logerr "$WORKING_DIR/items.awk required but missing"
 	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthSanB 2>/dev/null | awk -f $WORKING_DIR/items.awk >$sql 
     [ -s "$sql" ] || logerr "no sql statements were generated."
-    logit "loading data"
+    logit "loading item data"
     cat $sql | $DB_CMD
-    # [ -s "$sql" ] && rm $sql
-    logit "adding indexes."
+    logit "creating title info SQL"
+    [ -s "$WORKING_DIR/titles.awk" ] || logerr "$WORKING_DIR/titles.awk required but missing"
+    ## cat key|Author|Title|Publication year.
+	selcatalog -oCFATve -e380,490 2>/dev/null | awk -f $WORKING_DIR/titles.awk >$sql 
+    [ -s "$sql" ] || logerr "no sql statements were generated."
+    logit "loading title data"
+    cat $sql | $DB_CMD
+    [[ -s "$sql" && "$DEBUG" == false ]] && rm $sql
+    logit "adding item indexes."
     echo "CREATE INDEX IF NOT EXISTS idx_ckey ON catalog_items (catalog_title_id);" | $DB_CMD
     echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON catalog_items (catalog_title_id, call_number);" | $DB_CMD
     echo "CREATE INDEX IF NOT EXISTS idx_itype ON catalog_items (item_type);" | $DB_CMD
@@ -189,6 +214,11 @@ collect_item_info()
     echo "CREATE INDEX IF NOT EXISTS idx_lactive ON catalog_items (last_active);" | $DB_CMD
     echo "CREATE INDEX IF NOT EXISTS idx_lcharged ON catalog_items (last_charged);" | $DB_CMD
     echo "CREATE INDEX IF NOT EXISTS idx_id ON catalog_items (id);" | $DB_CMD
+    logit "adding title indexes."
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON catalog_titles (id);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_pub_year ON catalog_titles (publication_year);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_title_author ON catalog_titles (title, author);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_series ON catalog_titles (t_380,t_490);" | $DB_CMD
     logit "indexing complete"
 }
 

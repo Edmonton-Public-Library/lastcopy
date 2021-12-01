@@ -29,9 +29,11 @@ Modified
 ```sql
 CREATE TABLE IF NOT EXISTS catalog_titles (
     id INT PRIMARY KEY NOT NULL, -- This is the cat key
-    title VARCHAR 255 NOT NULL,
-    author VARCHAR 255,
-    publication_year INT
+    tcn VARCHAR (64) NOT NULL,
+    author VARCHAR (125),
+    title VARCHAR (255),
+    publication_year INT,
+    series VARCHAR (64)
 );
 
 CREATE TABLE IF NOT EXISTS catalog_items (
