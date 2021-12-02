@@ -31,7 +31,7 @@
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.07.01"
+VERSION="0.08.03"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     copy_holds INT, 
     title_holds INT, 
     last_active TEXT, 
-    last_charged TEXT
+    last_charged TEXT,
+    wf_call_num TEXT
 );
 CREATE TABLE IF NOT EXISTS catalog_titles (
     id INT PRIMARY KEY NOT NULL, -- This is the cat key
@@ -145,6 +146,7 @@ CREATE TABLE IF NOT EXISTS catalog_items (
     title_holds INT,
     last_active DATE,
     last_charged DATE,
+    wf_call_num VARCHAR (25),
     FOREIGN KEY (catalog_title_id)
         REFERENCES catalog_titles (id)
         ON UPDATE RESTRICT
@@ -186,7 +188,7 @@ collect_item_info()
         touch $LAST_RUN
     fi
     # Name of the scratch SQL insert commands.
-    local sql=$WORKING_DIR/catalog_info.sql
+    local sql=$WORKING_DIR/catalog_item.sql
     
 	# Select all items but do it from the cat keys because selitem 
 	# reports items with seq. and copy numbers that don't exist.
@@ -194,11 +196,12 @@ collect_item_info()
 	# all the items on the title.
 	logit "creating item info SQL"
     [ -s "$WORKING_DIR/items.awk" ] || logerr "$WORKING_DIR/items.awk required but missing"
-	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthSanB 2>/dev/null | awk -f $WORKING_DIR/items.awk >$sql 
+	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthSanB 2>/dev/null | selcallnum -iN -oNSD 2>/dev/null| awk -f $WORKING_DIR/items.awk >$sql 
     [ -s "$sql" ] || logerr "no sql statements were generated."
     logit "loading item data"
     cat $sql | $DB_CMD
     logit "creating title info SQL"
+    sql=$WORKING_DIR/catalog_title.sql
     [ -s "$WORKING_DIR/titles.awk" ] || logerr "$WORKING_DIR/titles.awk required but missing"
     ## cat key|Author|Title|Publication year.
 	selcatalog -oCFATve -e380,490 2>/dev/null | awk -f $WORKING_DIR/titles.awk >$sql 

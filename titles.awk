@@ -28,18 +28,25 @@ BEGIN {
     if (count > 0){
         printf ",\n";
     }
-    t_380 = $6;
-    gsub(/["'`,]/, "", t_380);
-    if (t_380 !~ /[0-9]/) {
+    ## Duplicate chars to compensate for syntax hi-lite not resetting on end of this regex.
+    gsub(/["'`,"'`]/, "", $0);
+    
+    if ($6 ~ /[0-9]/) {
+        t_380 = $6;
+    } else {
         t_380 = "-";
     }
-    t_490 = $7
-    gsub(/["'`,]/, "", t_490);
-    if (t_490 !~ /[0-9]/) {
+    
+    if ($7 ~ /[0-9]/) {
+        t_490 = $7;
+    } else {
         t_490 = "-";
     }
+    ## Get rid of the trailing space in TCNs.
+    gsub(/[ ]+$/, "", $2);
+    tcn = $2;
     
-    printf "(%d, '%s', '%s', '%s', %d, '%s', '%s')",$1,$2,$3,$4,$5,$6,$7;
+    printf "(%d, '%s', '%s', '%s', %d, '%s', '%s')",$1,tcn,$3,$4,$5,t_380,t_490;
     if (count == -1){
         printf ",\n";
     }
