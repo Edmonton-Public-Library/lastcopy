@@ -5,8 +5,9 @@
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
-# < Script description here >
-#    Copyright (C) 2021  Andrew Nisbet, Edmonton Public Library
+# Manages distribution of scripts to appropriate servers as required.
+#
+#    Copyright (C) 2022  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -28,15 +29,16 @@
 #      0.0 - Dev.
 ###############################################################################
 # Change comment below for appropriate server.
-PRODUCTION_SERVER=edpl.sirsidynix.net
-TEST_SERVER=edpltest.sirsidynix.net
+PRODUCTION_ILS=edpl.sirsidynix.net
+TEST_ILS=edpltest.sirsidynix.net
 USER=sirsi
+SERVER=ils@epl-ils.epl.ca
 REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
 LOCAL=~/projects/lastcopy
 APP=lastcopy.sh items.awk titles.awk Readme.md
 
 test: 
-	scp ${APP} ${USER}@${TEST_SERVER}:${REMOTE}
+	scp ${APP} ${USER}@${TEST_ILS}:${REMOTE}
 production: 
-	scp ${APP} ${USER}@${PRODUCTION_SERVER}:${REMOTE}
+	scp ${APP} ${USER}@${PRODUCTION_ILS}:${REMOTE}
 

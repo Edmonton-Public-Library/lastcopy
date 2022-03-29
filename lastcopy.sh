@@ -2,7 +2,7 @@
 ###############################################################################
 #
 # Bash shell script for project lastcopy
-# < Script description here >
+# 
 #    Copyright (C) 2021  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
@@ -31,7 +31,7 @@
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.08.03"
+VERSION="0.08.04"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst

@@ -2,7 +2,7 @@
 ## 2021-11-22
 Turns out last copy is too late. By the time we are down to the last copy, staff may have deleted the holds, and the discard process will happily purge the record, and the title in the process.
 
-A better solution is to be proactive. Collect data on titles that are volnerable because they are in the last stages of their life cycle. 
+A better solution is to be proactive. Collect data on titles that are vulnerable because they are in the last stages of their life cycle. 
 
 The acquisitions librarians have identified several metrics, and pinch points they encounter while determining if a title needs intervention.
 
@@ -18,42 +18,79 @@ Several problems occur while trying to determine if a title is a risk.
 - Similar titles should be identified to be merged.
 
 # Schema
-```sql
-CREATE TABLE Items (ckey INT, callnum INT, cpnum INT, total INT, cloc TEXT, itype TEXT, cholds INT, tholds INT);
-CREATE INDEX idx_ckey ON Items (ckey);
-CREATE INDEX idx_ckey_callnum ON Items (ckey, callnum);
-CREATE INDEX idx_itype ON Items (itype);
-CREATE INDEX idx_cloc ON Items (cloc);
-```
-Modified
-```sql
-CREATE TABLE IF NOT EXISTS catalog_titles (
-    id INT PRIMARY KEY NOT NULL, -- This is the cat key
-    tcn VARCHAR (64) NOT NULL,
-    author VARCHAR (125),
-    title VARCHAR (255),
-    publication_year INT,
-    series VARCHAR (64)
-);
+Tables_in_appsng(_dev)
+* [last_copy_item_complete_statuses](#table-lastcopyitemcompletestatuses)
+* [last_copy_item_statuses](#table-lastcopyitemstatuses)
+* [last_copy_items](#table-lastcopyitems)
+* [last_copy_series](#table-lastcopyseries)
+* [last_copy_series_titles](#table-lastcopyseriestitles)
+* [last_copy_titles](#table-lastcopytitles)
 
-CREATE TABLE IF NOT EXISTS catalog_items (
-    id INT PRIMARY KEY, -- Bar code.
-    catalog_title_id INT,
-    call_number INT,
-    copy_number INT,
-    checkouts INT,
-    current_location VARCHAR (25),
-    item_type VARCHAR (25),
-    copy_holds INT,
-    title_holds INT,
-    last_active DATE,
-    last_charged DATE,
-    FOREIGN KEY (catalog_title_id)
-        REFERENCES catalog_titles (id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT
-);
-```
+**Note to developer**; given the constraints of foreign keys in the schema, load item information before title information.
+
+
+## Table: last_copy_titles
+This table contains information about titles that are at risk of having only last copies of items.
+
+| **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
+|:---|---:|---:|---:|---:|---:|
+| id | bigint | unsigned | NO | PRI | NULL | 
+| title | varchar(255) | NO | NULL | 
+| author | varchar(255) | YES | NULL | 
+| publication_year | int | NO | NULL | 
+| title_holds | int | NO | NULL |
+
+## Table: last_copy_items
+Contains information about specific items. These items have been identified as representative of a title at risk.
+| **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
+|:---|---:|---:|---:|---:|---:|
+| id | bigint | unsigned | NO | PRI | NULL | 
+| last_copy_title_id | bigint | unsigned | NO | MUL | NULL | 
+| call_number | int | NO | NULL | 
+| copy_number | int | NO | NULL | 
+| checkouts | int | NO | NULL | 
+| current_location | varchar(255) | NO | NULL | 
+| item_type | varchar(25) | NO | NULL | 
+| copy_holds | int | NO | NULL | 
+| last_active | date | NO | NULL | 
+| last_charged | date | NO | NULL | 
+| last_copy_item_status_id | bigint | unsigned | YES | MUL | NULL | 
+| last_copy_item_complete_status_id | bigint | unsigned | YES | MUL | NULL | 
+| notes | varchar(255) | NO | NULL | 
+| is_reviewed | timestamp | NO | NULL | 
+| snooze_until | timestamp | YES | NULL | 
+| updated_by_user_id | char(36) | YES | MUL | NULL |
+
+## Table: last_copy_series
+This table groups lets staff create a series object that other titles can be attached to, and be managed as one title.
+
+| **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
+|:---|---:|---:|---:|---:|---:|
+| id | bigint | unsigned | NO | PRI | NULL | auto_increment | 
+| name | varchar(255) | NO | NULL | 
+| description | varchar(255) | NO | NULL | 
+| updated_by_user_id | char(36) | YES | MUL | NULL | 
+| deleted_at | timestamp | YES | NULL |
+
+
+## Table: last_copy_series_titles
+This table groups disperate catalog records together. For example 'Buffy the Vampire Slayer' but has many seasons catalogued as a separate records. Each of those records can be entered here, and associated as a series in [last_copy_series](#table-lastcopyseries).
+
+| **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
+|:---|---:|---:|---:|---:|---:|
+| id | bigint | unsigned | NO | PRI | NULL | auto_increment | 
+| last_copy_series_id | bigint | unsigned | NO | MUL | NULL | 
+| last_copy_title_id | bigint | unsigned | NO | MUL | NULL | 
+| updated_by_user_id | char(36) | YES | MUL | NULL | 
+| deleted_at | timestamp | YES | NULL |
+
+
+## Table: last_copy_complete_statuses
+To be used by appsng as list of status staff can apply to a title within the database. Some examples may be, 'Purchased', 'Under review', 'Not ordering' and the like.
+
+## Table: last_copy_item_statuses
+This a table of items (should be titles?) and asscociated statuses.
+
 
 
 ## Grubby List
