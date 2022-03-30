@@ -23,15 +23,30 @@
 # MA 02110-1301, USA.
 #
 ###############################################################################
-
+# 
+# Goals are to collect all the data necessary to fill the tables in 
+# the last copy database on epl-mysql.epl.ca.
+#
+# The data collected matches the following.
+#
+# 1) Title with zero or one circulatable items.
+# 2) All the items on a title with a high number of circs, where 'high number' is configurable.
+# 3) Series information if available, collected from the 490 and 830 tags.
+#
+# Locations that are not circulatable are as follows. 
+# UNKNOWN, MISSING, LOST, DISCARD, LOST-PAID, LONGOVRDUE,
+# CANC_ORDER, INCOMPLETE, DAMAGE, BARCGRAVE, NON-ORDER,
+# LOST-ASSUM, LOST-CLAIM, STOLEN, NOF
+#
 # Environment setup required by cron to run script because its daemon runs
 # without assuming any environment settings and we need to use sirsi's.
 #######################################################################
 # ***           Edit these to suit your environment               *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
 ###############################################################################
+## TODO: Continue refactoring to match requirements above.
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.08.04"
+VERSION="0.00.00"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
@@ -50,19 +65,15 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-option]
-  Application to collect data for last copy.
+ Application to collect data for last copy.
 
-  This application produces data that is used by acquisitions to reorder material before it is discarded.
-
-  The database is automatically rebuilt if it is more than a day old.
-
-  -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
-  -d, --debug turn on debug logging.
-  -D, --dev: create and use dev version of database.
-  -h, --help: display usage message and exit.
-  -l, --local: create sqlite3 database rather than use MySQL server.
-  -v, --version: display application version and exit.
-  -x, --xhelp: display usage message and exit.
+ -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
+ -d, --debug turn on debug logging.
+ -D, --dev: create and use dev version of database.
+ -h, --help: display usage message and exit.
+ -l, --local: create sqlite3 database rather than use MySQL server.
+ -v, --version: display application version and exit.
+ -x, --xhelp: display usage message and exit.
 
   Version: $VERSION
 EOFU!
@@ -75,26 +86,14 @@ logit()
 {
     local message="$1"
     local time=$(date +"%Y-%m-%d %H:%M:%S")
-    if [ -t 0 ]; then
-        # If run from an interactive shell message STDOUT and LOG.
-        echo -e "[$time] $message" | tee -a $LOG
-    else
-        # If run from cron do write to log.
-        echo -e "[$time] $message" >>$LOG
-    fi
+    echo -e "[$time] $message" | tee -a $LOG
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
     local time=$(date +"%Y-%m-%d %H:%M:%S")
-    if [ -t 0 ]; then
-        # If run from an interactive shell message STDOUT and LOG.
-        echo -e "[$time] **error: $message" | tee -a $LOG
-    else
-        # If run from cron do write to log.
-        echo -e "[$time] **error: $message" >>$LOG
-    fi
+    echo -e "[$time] **error: $message" | tee -a $LOG
     exit 1
 }
 

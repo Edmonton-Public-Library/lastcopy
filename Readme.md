@@ -8,8 +8,8 @@ The acquisitions librarians have identified several metrics, and pinch points th
 
 ## Determining risk
 A title is at risk if it can be catagorized by any of the following.
-- [There are zero or one circulatable copies on a title](#Count circulating copies query).
--- Locations that are not circulatable are as follows. UNKNOWN, MISSING, LOST, DISCARD, LOST-PAID, LONGOVRDUE, CANC_ORDER, INCOMPLETE, DAMAGE, BARCGRAVE, NON-ORDER, LOST-ASSUM, LOST-CLAIM, STOLEN, NOF.
+- [There are zero or one circulatable copies on a title](#count-circulating-copies-query).
+  - Locations that are not circulatable are as follows. UNKNOWN, MISSING, LOST, DISCARD, LOST-PAID, LONGOVRDUE, CANC_ORDER, INCOMPLETE, DAMAGE, BARCGRAVE, NON-ORDER, LOST-ASSUM, LOST-CLAIM, STOLEN, NOF.
 - Titles, all of whose items have circulations higher than a given threshold. The threshold may vary by item type, but all users agree on what the threshold is for each item type.
 
 ## Pinch points in this process
