@@ -46,17 +46,17 @@
 ###############################################################################
 ## TODO: Continue refactoring to match requirements above.
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.00.00"
+VERSION="0.02.02_DEV"
 DB_PRODUCTION=appsng
 DB_DEV=appsng_dev
 HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
 MIN_CHARGES=20
 DEBUG=false
-DEV=false
-LOCAL=false
 LOG=$WORKING_DIR/lastcopy.log
-LAST_RUN=$WORKING_DIR/last.run
-DB_CMD="mysql --defaults-file=~/mysqlconfigs/lastcopy_dev"
+DB=$WORKING_DIR/lastcopy.db
+DB_CMD="sqlite3 $DB"
+ITEMS_AWK=$WORKING_DIR/items.awk
+TITLES_AWK=$WORKING_DIR/titles.awk
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -67,15 +67,35 @@ usage()
 Usage: $0 [-option]
  Application to collect data for last copy.
 
+ Database schema:
+ CREATE TABLE IF NOT EXISTS items (
+    CKey INT,
+    ShelfKey TEXT,
+    CurrLoc TEXT,
+    IType TEXT,
+    LActive TEXT,
+    LCharged TEXT,
+    BCode INT PRIMARY KEY,
+    Charges INT,
+    CHolds INT
+);
+CREATE TABLE IF NOT EXISTS titles (
+    CKey INT PRIMARY KEY,
+    TCN TEXT,
+    Author TEXT,
+    Title TEXT,
+    PubYear INT,
+    Series TEXT,
+    THolds INT
+);
+
  -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
  -d, --debug turn on debug logging.
- -D, --dev: create and use dev version of database.
  -h, --help: display usage message and exit.
- -l, --local: create sqlite3 database rather than use MySQL server.
  -v, --version: display application version and exit.
+ -V, --VARS: Display all the variables set in the script.
  -x, --xhelp: display usage message and exit.
 
-  Version: $VERSION
 EOFU!
 	exit 1
 }
@@ -97,131 +117,138 @@ logerr()
     exit 1
 }
 
-
-create_db()
+# Displays a list of all the variables set in the script.
+show_vars()
 {
-	# Create the database
-    logit "creating database"
-    [ $DEBUG == true ] && logit "\$DB_CMD='$DB_CMD'"
-    if [ "$LOCAL" == true ]; then
-        ### sqlite3 version
-        $DB_CMD <<END_SQL
-CREATE TABLE IF NOT EXISTS catalog_items (
-    id INT PRIMARY KEY,
-    catalog_title_id INT,
-    call_number INT, 
-    copy_number INT, 
-    checkouts INT, 
-    current_location TEXT, 
-    item_type TEXT, 
-    copy_holds INT, 
-    title_holds INT, 
-    last_active TEXT, 
-    last_charged TEXT,
-    wf_call_num TEXT
-);
-CREATE TABLE IF NOT EXISTS catalog_titles (
-    id INT PRIMARY KEY NOT NULL, -- This is the cat key
-    tcn TEXT NOT NULL,
-    author TEXT,
-    title TEXT,
-    publication_year INT,
-    t_380 TEXT,
-    t_490 TEXT
-);
-END_SQL
-    else
-        ### MySQL version.
-        $DB_CMD <<END_SQL
-CREATE TABLE IF NOT EXISTS catalog_items (
-    id INT PRIMARY KEY, -- barcode
-    catalog_title_id INT,
-    call_number INT,
-    copy_number INT,
-    checkouts INT,
-    current_location VARCHAR (25),
-    item_type VARCHAR (25),
-    copy_holds INT,
-    title_holds INT,
-    last_active DATE,
-    last_charged DATE,
-    wf_call_num VARCHAR (25),
-    FOREIGN KEY (catalog_title_id)
-        REFERENCES catalog_titles (id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT
-);
-CREATE TABLE IF NOT EXISTS catalog_titles (
-    id INT PRIMARY KEY NOT NULL, -- This is the cat key
-    tcn VARCHAR (64) NOT NULL,
-    author VARCHAR (125),
-    title VARCHAR (255),
-    publication_year INT,
-    t_380 VARCHAR (64),
-    t_490 VARCHAR (64)
-);
-END_SQL
-    fi
-    logit "create database command exiting."
+    echo "\$WORKING_DIR=$WORKING_DIR"
+    echo "\$VERSION=$VERSION"
+    echo "\$DB_PRODUCTION=$DB_PRODUCTION"
+    echo "\$DB_DEV=$DB_DEV"
+    echo "\$HICIRC_CKEY_LIST=$HICIRC_CKEY_LIST"
+    echo "\$MIN_CHARGES=$MIN_CHARGES"
+    echo "\$DEBUG=$DEBUG"
+    echo "\$LOG=$LOG"
+    echo "\$DB=$DB"
+    echo "\$DB_CMD=$DB_CMD"
+    echo "\$ITEMS_AWK=$ITEMS_AWK"
+    echo "\$TITLES_AWK=$TITLES_AWK"
 }
-
 
 # Produces cat keys whose items have more than $MIN_CHARGES 
 collect_item_info()
 {
     ## Clean up any pre-existing database if it is more than a day old.
-    if [ -f "$LAST_RUN" ]; then
+    if [ -s "$DB" ]; then
         local yesterday=$(date -d 'now - 1 days' +%s)
-        local db_age=$(date -r "$LAST_RUN" +%s)
+        local db_age=$(date -r "$DB" +%s)
         if (( db_age <= yesterday )); then
             # Truncate the tables - either local or mysql
-            rm $LAST_RUN
-            touch $LAST_RUN
-            echo "TRUNCATE TABLE catalog_items;" | $DB_CMD
+            rm $DB
+            create_db
         else
             # keep fresh database.
             logit "database is less than a day old, nothing to do."
             return
         fi
     else
-        touch $LAST_RUN
+        create_db
     fi
-    # Name of the scratch SQL insert commands.
-    local sql=$WORKING_DIR/catalog_item.sql
-    
-	# Select all items but do it from the cat keys because selitem 
-	# reports items with seq. and copy numbers that don't exist.
-	# To fix that select all the titles, then ask selitem to output
-	# all the items on the title.
-	logit "creating item info SQL"
-    [ -s "$WORKING_DIR/items.awk" ] || logerr "$WORKING_DIR/items.awk required but missing"
-	selcatalog -oCh 2>/dev/null | selitem -iC -oIdmthSanB 2>/dev/null | selcallnum -iN -oNSD 2>/dev/null| awk -f $WORKING_DIR/items.awk >$sql 
-    [ -s "$sql" ] || logerr "no sql statements were generated."
-    logit "loading item data"
+    # Output file for the selcatalog and selitem commands.
+    local sql=$WORKING_DIR/items.sql
+    [ -s "$ITEMS_AWK" ] || logerr "missing required $ITEMS_AWK script"
+    [ -s "$TITLES_AWK" ] || logerr "missing required $TITLES_AWK script"
+	logit "collecting item info"
+    ## Selcatalog-in: *
+    ## selcatalog-out: ckey,title_holds
+    ## selitem-in: ckey
+    ## selitem-out: callNumKey,currLoc,type,lastActive,lastCharged,barCode,totalCharges,copyHolds
+    ## selcallnum-in: callNumKey
+    ## selcallnum-out: ckey,shelvingKey,[currLoc,type,lastActive,lastCharged,barCode,totalCharges,copyHolds]
+    ## 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
+    ## 548305|DVD J SER LEM|CHECKEDOUT|JDVD21|20220323|20220323|31221113074103  |38|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210901|20210831|31221102754715  |77|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20150324|20150201|31221106513737  |49|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20151224|20151103|31221106513810  |69|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180307|20180115|31221113074046  |15|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211229|20211223|31221113074160  |49|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180302|20160706|31221106513802  |72|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180416|20180211|31221113074178  |24|0|
+    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180627|20180507|31221102753907  |55|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211121|20211120|31221113074038  |46|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210429|20210425|31221113074087  |53|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210706|20210703|31221113074061  |50|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211020|20211014|31221113074020  |50|0|
+    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211129|20211104|31221113074004  |54|0|
+    local cat_data=$WORKING_DIR/cat_records.lst
+    # The second translate takes care of possesive plural nouns in call numbers.
+	selcatalog -oCFatve -e380,490 2>/dev/null | tr -d \''"`\' |  tee $cat_data | selitem -iC -oNmtanBdh 2>/dev/null | selcallnum -iN -oCDS 2>/dev/null | tr -d \''"`\' | awk -f $ITEMS_AWK >$sql
+    [  -s "$sql" ] || logerr "no item output generated."
+    if [ "$DEBUG" == true ]; then
+        local item_count=$(grep -e "^(" $sql | wc -l)
+        logit "DEBUG: adding $item_count items to the database."
+    fi
     cat $sql | $DB_CMD
-    logit "creating title info SQL"
-    sql=$WORKING_DIR/catalog_title.sql
-    [ -s "$WORKING_DIR/titles.awk" ] || logerr "$WORKING_DIR/titles.awk required but missing"
+    [ -f "$sql" ] && [ "$DEBUG" == false ] && rm $sql
+    logit "creating title info"
+    sql=$WORKING_DIR/titles.sql
     ## cat key|Author|Title|Publication year.
-	selcatalog -oCFATve -e380,490 2>/dev/null | awk -f $WORKING_DIR/titles.awk >$sql 
-    [ -s "$sql" ] || logerr "no sql statements were generated."
-    logit "loading title data"
+    # 2471515|LSC4480726    |Levy, Ganit|What Should Danny Do: School Day / by Ganit  Levy|2022|-|Power to Choose|
+    logit "collecting hold data"
+    # 23|2471515|LSC4480726    |Levy, Ganit|What Should Danny Do: School Day / by Ganit  Levy|2022|-|Power to Choose|123456|
+    ## Gather all the active holds for the titles, dedup and count them.
+    cat $cat_data | selhold -iC -jACTIVE -oCSU 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -oc1,c2,c3,c4,c5,c6,c7,c0 -P >${cat_data}.holds
+    ## Since zero holds are not output we make a new list of all titles with no holds and merge the holds file with pipe.pl.
+    cat $cat_data | pipe.pl -m 'c6:@|0|' >${cat_data}.zero_holds
+    cat ${cat_data}.zero_holds | pipe.pl -0 ${cat_data}.holds -M 'c0:c0?c7.0' -oc7,exclude | awk -f $TITLES_AWK >$sql 
+    [ -s "$sql" ] || logerr "no title data were generated." 
+    if [ "$DEBUG" == true ]; then
+        local title_count=$(grep -e "^(" $sql | wc -l)
+        logit "DEBUG: adding $title_count titles to the database."
+    else
+        rm $cat_data ${cat_data}.holds ${cat_data}.zero_holds
+    fi
+    logit "starting to load title data"
     cat $sql | $DB_CMD
-    [[ -s "$sql" && "$DEBUG" == false ]] && rm $sql
+    [ -f "$sql" ] && [ "$DEBUG" == false ] && rm $sql
     logit "adding item indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON catalog_items (catalog_title_id);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey_callnum ON catalog_items (catalog_title_id, call_number);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_itype ON catalog_items (item_type);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_cloc ON catalog_items (current_location);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_lactive ON catalog_items (last_active);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_lcharged ON catalog_items (last_charged);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_id ON catalog_items (id);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON items (CKey);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_bcode ON items (BCode);" | $DB_CMD
     logit "adding title indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON catalog_titles (id);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_pub_year ON catalog_titles (publication_year);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_title_author ON catalog_titles (title, author);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_series ON catalog_titles (t_380,t_490);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON titles (CKey);" | $DB_CMD
+    echo "CREATE INDEX IF NOT EXISTS idx_series ON titles (Series);" | $DB_CMD
     logit "indexing complete"
+}
+
+create_db()
+{
+    # Create the database
+    logit "creating database"
+    # Items table
+    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
+    # Titles table
+    # CKey, TCN, Author, Title, PubYear, Series
+    $DB_CMD <<END_SQL
+CREATE TABLE IF NOT EXISTS items (
+    CKey INT,
+    ShelfKey TEXT,
+    CurrLoc TEXT,
+    IType TEXT,
+    LActive TEXT,
+    LCharged TEXT,
+    BCode INT PRIMARY KEY,
+    Charges INT,
+    CHolds INT
+);
+CREATE TABLE IF NOT EXISTS titles (
+    CKey INT PRIMARY KEY,
+    TCN TEXT,
+    Author TEXT,
+    Title TEXT,
+    PubYear INT,
+    Series TEXT,
+    THolds INT
+);
+END_SQL
 }
 
 ### End of function declarations
@@ -232,7 +259,7 @@ collect_item_info()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "charges:,debug,dev,help,local,version,xhelp" -o "c:dDhlvx" -a -- "$@")
+options=$(getopt -l "charges:,debug,help,version,VARS,xhelp" -o "c:dhvVx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -250,23 +277,16 @@ do
         logit "turning on debugging"
 		DEBUG=true
 		;;
-    -D|--dev)
-        logit "dev mode"
-		DEV=true
-		;;
     -h|--help)
         usage
         exit 0
         ;;
-    -l|--local)
-        logit "create and use local sqlite3 database."
-		LOCAL=true
-        # Which database method are we using local or mysql
-        DB_CMD="sqlite3 $WORKING_DIR/$DB_DEV"
-		;;
     -v|--version)
         echo "$0 version: $VERSION"
         exit 0
+        ;;
+    -V|--VARS)
+        show_vars
         ;;
     -x|--xhelp)
         usage
@@ -281,11 +301,10 @@ do
 done
 logit "== starting $0 version: $VERSION"
 logit "testing freshness of item information"
-create_db
 collect_item_info
 # Find all the cat keys who's items all have more than $MIN_CHARGES charges.
 [ $DEBUG == true ] && logit "starting selection query"
-echo "SELECT catalog_title_id FROM catalog_items GROUP BY catalog_title_id HAVING min(checkouts) >= $MIN_CHARGES;" | $DB_CMD >$HICIRC_CKEY_LIST
+echo "SELECT CKey FROM items GROUP BY CKey HAVING min(Charges) >= $MIN_CHARGES;" | $DB_CMD >$HICIRC_CKEY_LIST
 [ -s "$HICIRC_CKEY_LIST" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
 [ $DEBUG == true ] && logit "done"
 logit "hi-circ list $HICIRC_CKEY_LIST created"

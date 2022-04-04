@@ -1,16 +1,8 @@
 #!usr/bin/env awk
 
-## Create sql insert statements for hicirc counts on titles.
-#     id INT PRIMARY KEY NOT NULL, -- This is the cat key
-#     tcn VARCHAR (64) NOT NULL,
-#     author VARCHAR (125),
-#     title VARCHAR (255),
-#     publication_year INT,
-#     t_380 VARCHAR (64),
-#     t_490 VARCHAR (64)
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO catalog_titles (id, tcn, author, title, publication_year, t_380, t_490) VALUES ";
+    insertStatement = "INSERT OR IGNORE INTO titles (CKey, TCN, Author, Title, PubYear, Series, THolds) VALUES ";
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
@@ -29,24 +21,26 @@ BEGIN {
         printf ",\n";
     }
     ## Duplicate chars to compensate for syntax hi-lite not resetting on end of this regex.
-    gsub(/["'`,"'`]/, "", $0);
-    
-    if ($6 ~ /[0-9]/) {
-        t_380 = $6;
-    } else {
-        t_380 = "-";
-    }
-    
-    if ($7 ~ /[0-9]/) {
-        t_490 = $7;
-    } else {
-        t_490 = "-";
-    }
+    ## Remove quotes from titles. Add to regex if you find more characters that break the INSERT SQL.
+    gsub(/[`,]/, "", $0);
     ## Get rid of the trailing space in TCNs.
     gsub(/[ ]+$/, "", $2);
     tcn = $2;
-    
-    printf "(%d, '%s', '%s', '%s', %d, '%s', '%s')",$1,tcn,$3,$4,$5,t_380,t_490;
+    ## Determine series information.
+    series = "na";
+    if ($6 ~ /[0-9A-Za-z]/) {
+        series = $6;
+    }
+    # More commonly series info is in the 490. If it is overwrite 'series' var and if not, it was set to either 380 or 'na' above.
+    if ($7 ~ /[0-9A-Za-z]/) {
+        series = $7;
+    }
+    ## Typically series is just a phrase like 'Potter House series', but sometimes it's more like:
+    ## 'Tom Clancy's Op-Center series ; v. 18'. In these cases let's strip off everything after the ';'
+    gsub(/;.+$/, "", series);
+    # Trim off the last space before the end if necessary.
+    gsub(/[ ]+$/, "", series);
+    printf "(%d, '%s', '%s', '%s', %d, '%s', %d)",$1,tcn,$3,$4,$5,series,$8;
     if (count == -1){
         printf ",\n";
     }

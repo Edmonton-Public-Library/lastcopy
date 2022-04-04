@@ -3,7 +3,9 @@
 ## Create sql insert statements for hicirc counts on titles.
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO catalog_items (catalog_title_id, call_number, copy_number, checkouts, current_location, item_type, copy_holds, title_holds, last_active, last_charged, id, wf_call_num) VALUES ";
+    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
+    # 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
+    insertStatement = "INSERT OR IGNORE INTO items (CKey, ShelfKey, CurrLoc, IType, LActive, LCharged, BCode, Charges, CHolds) VALUES ";
     print "BEGIN TRANSACTION;"
     print insertStatement;
     count = -1;
@@ -24,24 +26,27 @@ BEGIN {
     }
     
     last_active = default_date;
-    if (length($9) == 8){
+    if (length($5) == 8){
         # Format the date into a ISO standard date: YYYY-MM-DD.
-        year = substr($9,1,4);
-        month= substr($9,5,2);
-        day  = substr($9,7);
+        year = substr($5,1,4);
+        month= substr($5,5,2);
+        day  = substr($5,7);
         last_active = sprintf("%d-%02d-%02d",year,month,day);
     }
     last_charged = default_date;
-    if (length($10) == 8){
+    if (length($6) == 8){
         # Format the date into a ISO standard date: YYYY-MM-DD.
-        year = substr($10,1,4);
-        month= substr($10,5,2);
-        day  = substr($10,7);
+        year = substr($6,1,4);
+        month= substr($6,5,2);
+        day  = substr($6,7);
         last_charged = sprintf("%d-%02d-%02d",year,month,day);
     }
-    gsub(/['"`,'"`]/, "", $0);
-    # ckey,ckos - total charges
-    printf "(%d, %d, %d, %d,'%s','%s', %d, %d, '%s','%s', %d, '%s')",$1,$2,$3,$4,$5,$6,$7,$8,last_active,last_charged,$11,$12;
+    gsub(/[`,]/, "", $0);
+    ## Get rid of the trailing space in bar codes.
+    gsub(/[ ]+$/, "", $7);
+    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
+    # 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
+    printf "(%d,'%s','%s','%s','%s','%s',%d,%d,%d)",$1,$2,$3,$4,last_active,last_charged,$7,$8,$9;
     if (count == -1){
         printf ",\n";
     }
