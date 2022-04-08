@@ -35,7 +35,7 @@ USER=sirsi
 SERVER=ils@epl-ils.epl.ca
 REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
 LOCAL=~/projects/lastcopy
-APPS=lastcopy.sh Readme.md grubby.sh
+APPS=lastcopy.sh Readme.md grubby.sh series.sh
 DRIVER=lastcopy_driver.sh items.awk titles.awk Readme.md
 
 test: 
