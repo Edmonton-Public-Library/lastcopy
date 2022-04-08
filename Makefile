@@ -35,11 +35,14 @@ USER=sirsi
 SERVER=ils@epl-ils.epl.ca
 REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
 LOCAL=~/projects/lastcopy
+DEV_APP=lastcopy_dev.sh
 APP=lastcopy.sh items.awk titles.awk Readme.md
 DRIVER=lastcopy_driver.sh
 
 test: 
 	scp ${APP} ${USER}@${TEST_ILS}:${REMOTE}
+	scp ${DEV_APP} ${USER}@${PRODUCTION_ILS}:${REMOTE}
+	scp ${DEV_APP} ${USER}@${TEST_ILS}:${REMOTE}
 production: 
 	scp ${APP} ${USER}@${PRODUCTION_ILS}:${REMOTE}
 	scp ${DRIVER} ils@epl-ils.epl.ca:/home/ils/last_copy/bin

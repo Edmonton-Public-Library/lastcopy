@@ -3,7 +3,7 @@
 #
 # Bash shell script for project lastcopy
 # 
-#    Copyright (C) 2021  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2022  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -24,40 +24,30 @@
 #
 ###############################################################################
 # 
-# Goals are to collect all the data necessary to fill the tables in 
-# the last copy database on epl-mysql.epl.ca.
-#
-# The data collected matches the following.
-#
-# 1) Title with zero or one circulatable items.
-# 2) All the items on a title with a high number of circs, where 'high number' is configurable.
-# 3) Series information if available, collected from the 490 and 830 tags.
+# Goal make a list of all the cat ckeys, holds, and circulatable copies.
 #
 # Locations that are not circulatable are as follows. 
 # UNKNOWN, MISSING, LOST, DISCARD, LOST-PAID, LONGOVRDUE,
 # CANC_ORDER, INCOMPLETE, DAMAGE, BARCGRAVE, NON-ORDER,
-# LOST-ASSUM, LOST-CLAIM, STOLEN, NOF
+# LOST-ASSUM, LOST-CLAIM, STOLEN, NOF, ILL
 #
 # Environment setup required by cron to run script because its daemon runs
 # without assuming any environment settings and we need to use sirsi's.
 #######################################################################
 # ***           Edit these to suit your environment               *** #
-. /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
-###############################################################################
-## TODO: Continue refactoring to match requirements above.
+. ~/.bashrc
+#######################################################################
+APP=$(basename -s .sh $0)
+VERSION="0.03.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-VERSION="0.02.02_DEV"
-DB_PRODUCTION=appsng
-DB_DEV=appsng_dev
-HICIRC_CKEY_LIST=$WORKING_DIR/highcirctitles.lst
-MIN_CHARGES=20
+TMP_DIR=/tmp
+LOG=$WORKING_DIR/${APP}.log
+ALT_LOG=/dev/null
+LAST_COPY_LIST=$WORKING_DIR/${APP}.lst
+NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL'
 DEBUG=false
-LOG=$WORKING_DIR/lastcopy.log
-DB=$WORKING_DIR/lastcopy.db
-DB_CMD="sqlite3 $DB"
-ITEMS_AWK=$WORKING_DIR/items.awk
-TITLES_AWK=$WORKING_DIR/titles.awk
-###############################################################################
+CIRC_COPIES=1
+####### Functions ########
 # Display usage message.
 # param:  none
 # return: none
@@ -65,35 +55,18 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-option]
- Application to collect data for last copy.
+ Creates a list of catalog keys, hold count, and visible copy counts
+ in pipe-delimited format.
+   ckey|title holds|circulatable copy count
 
- Database schema:
- CREATE TABLE IF NOT EXISTS items (
-    CKey INT,
-    ShelfKey TEXT,
-    CurrLoc TEXT,
-    IType TEXT,
-    LActive TEXT,
-    LCharged TEXT,
-    BCode INT PRIMARY KEY,
-    Charges INT,
-    CHolds INT
-);
-CREATE TABLE IF NOT EXISTS titles (
-    CKey INT PRIMARY KEY,
-    TCN TEXT,
-    Author TEXT,
-    Title TEXT,
-    PubYear INT,
-    Series TEXT,
-    THolds INT
-);
-
- -c, --charges={n} sets the minimum charges all items on a title must have to make the grubby list.
+ -c, --circ_copies=<integer> Sets the upper bound of circulate-able
+   copies a title must have to make it to the 'last copy' list.
+   Default is $CIRC_COPIES or less, which is usually fine.
  -d, --debug turn on debug logging.
  -h, --help: display usage message and exit.
+ -l, --log=<path>: Appends logging to another log file.
  -v, --version: display application version and exit.
- -V, --VARS: Display all the variables set in the script.
+ -V, --VARS: Show variables used.
  -x, --xhelp: display usage message and exit.
 
 EOFU!
@@ -106,152 +79,87 @@ logit()
 {
     local message="$1"
     local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] $message" | tee -a $LOG
+    echo -e "[$time] $message" | tee -a $LOG -a "$ALT_LOG"
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
     local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] **error: $message" | tee -a $LOG
+    echo -e "[$time] **error: $message" | tee -a $LOG -a "$ALT_LOG"
     exit 1
 }
-
-# Displays a list of all the variables set in the script.
+# Displays variables.
 show_vars()
 {
-    echo "\$WORKING_DIR=$WORKING_DIR"
-    echo "\$VERSION=$VERSION"
-    echo "\$DB_PRODUCTION=$DB_PRODUCTION"
-    echo "\$DB_DEV=$DB_DEV"
-    echo "\$HICIRC_CKEY_LIST=$HICIRC_CKEY_LIST"
-    echo "\$MIN_CHARGES=$MIN_CHARGES"
-    echo "\$DEBUG=$DEBUG"
-    echo "\$LOG=$LOG"
-    echo "\$DB=$DB"
-    echo "\$DB_CMD=$DB_CMD"
-    echo "\$ITEMS_AWK=$ITEMS_AWK"
-    echo "\$TITLES_AWK=$TITLES_AWK"
+    logit "\$APP=$APP"
+    logit "\$VERSION=$VERSION"
+    logit "\$WORKING_DIR=$WORKING_DIR"
+    logit "\$TMP_DIR=$TMP_DIR"
+    logit "\$LOG=$LOG"
+    logit "\$ALT_LOG=$ALT_LOG"
+    logit "\$LAST_COPY_LIST=$LAST_COPY_LIST"
+    logit "\$NON_CIRC_LOCATIONS=$NON_CIRC_LOCATIONS"
+    logit "\$DEBUG=$DEBUG"
+    logit "\$CIRC_COPIES=$CIRC_COPIES"
 }
-
-# Produces cat keys whose items have more than $MIN_CHARGES 
-collect_item_info()
+# Finds titles with last, or near to last copies in circulation.
+find_last_copies()
 {
-    ## Clean up any pre-existing database if it is more than a day old.
-    if [ -s "$DB" ]; then
-        local yesterday=$(date -d 'now - 1 days' +%s)
-        local db_age=$(date -r "$DB" +%s)
-        if (( db_age <= yesterday )); then
-            # Truncate the tables - either local or mysql
-            rm $DB
-            create_db
-        else
-            # keep fresh database.
-            logit "database is less than a day old, nothing to do."
-            return
-        fi
-    else
-        create_db
+    local allActiveHoldCKeys=$TMP_DIR/${APP}_all_active_holds_ckey.lst
+    local allAHCItemLocations=$TMP_DIR/${APP}_all_active_holds_items_loc.lst
+    local allVisibleItems=$TMP_DIR/${APP}_all_visible_items.lst
+    local visibleItemCount=$TMP_DIR/${APP}_visible_item_count.lst
+    local allCKeyHoldCountVisibleCopyCount=$TMP_DIR/${APP}_all_ckey_hold_count_visible_copy_count.lst
+    # Objective: Find the count of active holds on each title.
+    # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
+    # Example: 1012345|5
+    logit "selecting active holds"
+    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse >$allActiveHoldCKeys
+    [ -s "$allActiveHoldCKeys" ] || logerr "no active holds found."
+    # Objective: Given the list of cat keys with holds, find the locations of the items.
+    # Method: Pipe cat keys into selitem outputting the cat key (barcode used for checking only) and location.
+    # Example: 
+    # 1000044|31221116612420  |DISCARD|
+    # 1000044|31221116612396  |INTRANSIT|
+    # 1000056|31221101053291  |HOLDS|
+    logit "selecting items on titles with active holds"
+    cat $allActiveHoldCKeys | selitem -iC -oCBm 2>/dev/null >$allAHCItemLocations
+    [ -s "$allAHCItemLocations" ] || logerr "no items found."
+    # Objective: Make a new list of items with only non-shadowed locations.
+    # Method: Pipe the items and exclude hidden non-circulatable locations and save the list.
+    # Example:
+    # 1000044|31221116612396  |INTRANSIT|
+    # 1000056|31221101053291  |HOLDS|
+    [ "$DEBUG" == true ] && logit "removing items with non-circ locations."
+    cat $allAHCItemLocations | pipe.pl -Gc2:"($NON_CIRC_LOCATIONS)"  >$allVisibleItems
+    [ -s "$allVisibleItems" ] || logit "no visible items found."
+    # Objective: Find all the cat ckeys and a count of circulatable items.
+    # Mehod: De-duplicate all circulateable cat keys and add the count of duplicates to the end of each line.
+    # Example:
+    # 1000044|1
+    # 1000056|1
+    # 1000084|3
+    [ "$DEBUG" == true ] && logit "computing visible copy count for titles."
+    cat $allVisibleItems | pipe.pl -dc0 -A -P | pipe.pl -o c1,c0 >$visibleItemCount
+    # Objective: Match ckeys with holds with ckeys with visible copies.
+    # Method: pipe all the cat keys with holds, merge with the list of visible item counts, and if a cat key with holds
+    #  matches a cat key with visible copies, add the visible copy count, otherwise add a zero (0).
+    [ "$DEBUG" == true ] && logit "merging hold and visible copy lists."
+    cat $allActiveHoldCKeys | pipe.pl -0 $visibleItemCount -M c0:c0?c1.0 >$allCKeyHoldCountVisibleCopyCount
+    # Objective: Find all the cat keys with 0 or 1 visible items.
+    # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
+    logit "generating list of last copies ($LAST_COPY_LIST)"
+    cat $allCKeyHoldCountVisibleCopyCount | pipe.pl -C c2:le$CIRC_COPIES >$LAST_COPY_LIST
+    [ -s "$LAST_COPY_LIST" ] || logerr "failed to create last copy list $LAST_COPY_LIST."
+    if [ "$DEBUG" == false ]; then
+        rm $allActiveHoldCKeys
+        rm $allAHCItemLocations
+        rm $allVisibleItems
+        rm $visibleItemCount
+        rm $allCKeyHoldCountVisibleCopyCount
     fi
-    # Output file for the selcatalog and selitem commands.
-    local sql=$WORKING_DIR/items.sql
-    [ -s "$ITEMS_AWK" ] || logerr "missing required $ITEMS_AWK script"
-    [ -s "$TITLES_AWK" ] || logerr "missing required $TITLES_AWK script"
-	logit "collecting item info"
-    ## Selcatalog-in: *
-    ## selcatalog-out: ckey,title_holds
-    ## selitem-in: ckey
-    ## selitem-out: callNumKey,currLoc,type,lastActive,lastCharged,barCode,totalCharges,copyHolds
-    ## selcallnum-in: callNumKey
-    ## selcallnum-out: ckey,shelvingKey,[currLoc,type,lastActive,lastCharged,barCode,totalCharges,copyHolds]
-    ## 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
-    ## 548305|DVD J SER LEM|CHECKEDOUT|JDVD21|20220323|20220323|31221113074103  |38|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210901|20210831|31221102754715  |77|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20150324|20150201|31221106513737  |49|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20151224|20151103|31221106513810  |69|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180307|20180115|31221113074046  |15|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211229|20211223|31221113074160  |49|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180302|20160706|31221106513802  |72|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180416|20180211|31221113074178  |24|0|
-    ## 548305|DVD J SER LEM|LOST-ASSUM|JDVD21|20180627|20180507|31221102753907  |55|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211121|20211120|31221113074038  |46|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210429|20210425|31221113074087  |53|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20210706|20210703|31221113074061  |50|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211020|20211014|31221113074020  |50|0|
-    ## 548305|DVD J SER LEM|JUVMOVIE|JDVD21|20211129|20211104|31221113074004  |54|0|
-    local cat_data=$WORKING_DIR/cat_records.lst
-    # The second translate takes care of possesive plural nouns in call numbers.
-	selcatalog -oCFatve -e380,490 2>/dev/null | tr -d \''"`\' |  tee $cat_data | selitem -iC -oNmtanBdh 2>/dev/null | selcallnum -iN -oCDS 2>/dev/null | tr -d \''"`\' | awk -f $ITEMS_AWK >$sql
-    [  -s "$sql" ] || logerr "no item output generated."
-    if [ "$DEBUG" == true ]; then
-        local item_count=$(grep -e "^(" $sql | wc -l)
-        logit "DEBUG: adding $item_count items to the database."
-    fi
-    cat $sql | $DB_CMD
-    [ -f "$sql" ] && [ "$DEBUG" == false ] && rm $sql
-    logit "creating title info"
-    sql=$WORKING_DIR/titles.sql
-    ## cat key|Author|Title|Publication year.
-    # 2471515|LSC4480726    |Levy, Ganit|What Should Danny Do: School Day / by Ganit  Levy|2022|-|Power to Choose|
-    logit "collecting hold data"
-    # 23|2471515|LSC4480726    |Levy, Ganit|What Should Danny Do: School Day / by Ganit  Levy|2022|-|Power to Choose|123456|
-    ## Gather all the active holds for the titles, dedup and count them.
-    cat $cat_data | selhold -iC -jACTIVE -oCSU 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -oc1,c2,c3,c4,c5,c6,c7,c0 -P >${cat_data}.holds
-    ## Since zero holds are not output we make a new list of all titles with no holds and merge the holds file with pipe.pl.
-    cat $cat_data | pipe.pl -m 'c6:@|0|' >${cat_data}.zero_holds
-    cat ${cat_data}.zero_holds | pipe.pl -0 ${cat_data}.holds -M 'c0:c0?c7.0' -oc7,exclude | awk -f $TITLES_AWK >$sql 
-    [ -s "$sql" ] || logerr "no title data were generated." 
-    if [ "$DEBUG" == true ]; then
-        local title_count=$(grep -e "^(" $sql | wc -l)
-        logit "DEBUG: adding $title_count titles to the database."
-    else
-        rm $cat_data ${cat_data}.holds ${cat_data}.zero_holds
-    fi
-    logit "starting to load title data"
-    cat $sql | $DB_CMD
-    [ -f "$sql" ] && [ "$DEBUG" == false ] && rm $sql
-    logit "adding item indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON items (CKey);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_bcode ON items (BCode);" | $DB_CMD
-    logit "adding title indexes."
-    echo "CREATE INDEX IF NOT EXISTS idx_ckey ON titles (CKey);" | $DB_CMD
-    echo "CREATE INDEX IF NOT EXISTS idx_series ON titles (Series);" | $DB_CMD
-    logit "indexing complete"
 }
-
-create_db()
-{
-    # Create the database
-    logit "creating database"
-    # Items table
-    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
-    # Titles table
-    # CKey, TCN, Author, Title, PubYear, Series
-    $DB_CMD <<END_SQL
-CREATE TABLE IF NOT EXISTS items (
-    CKey INT,
-    ShelfKey TEXT,
-    CurrLoc TEXT,
-    IType TEXT,
-    LActive TEXT,
-    LCharged TEXT,
-    BCode INT PRIMARY KEY,
-    Charges INT,
-    CHolds INT
-);
-CREATE TABLE IF NOT EXISTS titles (
-    CKey INT PRIMARY KEY,
-    TCN TEXT,
-    Author TEXT,
-    Title TEXT,
-    PubYear INT,
-    Series TEXT,
-    THolds INT
-);
-END_SQL
-}
-
-### End of function declarations
 
 ### Check input parameters.
 # $@ is all command line parameters passed to the script.
@@ -259,7 +167,7 @@ END_SQL
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "charges:,debug,help,version,VARS,xhelp" -o "c:dhvVx" -a -- "$@")
+options=$(getopt -l "circ_copies:,debug,help,log:,version,VARS,xhelp" -o "c:dhl:vVx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -268,21 +176,25 @@ eval set -- "$options"
 while true
 do
     case $1 in
-    -c|--charges)
-		shift
-        logit "compile cat keys where all items have $1 minimum charges"
-		MIN_CHARGES=$1
-		;;
+    -c|--circ_copies)
+        shift
+        CIRC_COPIES=$1
+        logit "setting circulatable copies to $CIRC_COPIES"
+        ;;
     -d|--debug)
-        logit "turning on debugging"
-		DEBUG=true
-		;;
+        DEBUG=true
+        ;;
     -h|--help)
         usage
         exit 0
         ;;
+    -l|--log)
+        shift
+        ALT_LOG=$1
+        logit "adding logging to $ALT_LOG"
+        ;;
     -v|--version)
-        echo "$0 version: $VERSION"
+        echo "$APP version: $VERSION"
         exit 0
         ;;
     -V|--VARS)
@@ -299,15 +211,6 @@ do
     esac
     shift
 done
-logit "== starting $0 version: $VERSION"
-logit "testing freshness of item information"
-collect_item_info
-# Find all the cat keys who's items all have more than $MIN_CHARGES charges.
-[ $DEBUG == true ] && logit "starting selection query"
-echo "SELECT CKey FROM items GROUP BY CKey HAVING min(Charges) >= $MIN_CHARGES;" | $DB_CMD >$HICIRC_CKEY_LIST
-[ -s "$HICIRC_CKEY_LIST" ] || logit "no titles matched criteria of all copies having more than $MIN_CHARGES."
-[ $DEBUG == true ] && logit "done"
-logit "hi-circ list $HICIRC_CKEY_LIST created"
-logit "== done =="
-exit 0
-# EOF
+logit "== starting $APP version: $VERSION"
+find_last_copies
+logit "done"

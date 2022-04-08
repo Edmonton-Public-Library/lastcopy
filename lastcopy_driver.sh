@@ -37,13 +37,28 @@
 ###############################################################################
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="0.00.00_DEV"
+VERSION="0.01.00_DEV"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
+DB_ILS_LASTCOPY=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test/lastcopy.db
 DEBUG=false
 LOG=$WORKING_DIR/lastcopy_driver.log
 DB_CMD="mysql --defaults-file"
 IS_TEST=false
+# These locations put a title at risk of not having circulatable copies.
+DISCARD_LOCATIONS=DAMAGE,DISCARD,LOST,LOST-ASSUM,LOST-CLAIM,MISSING
+NUM_HOLDS=
+NUM_CIRC_COPIES=1
+NUM_CHARGES=
+LAST_CHARGED=
+LAST_ACTIVE=
+# Don't select titles where all the items on a title have these locations.
+EXCLUDE_LOCATIONS="INTERNET,HOME"
+# Don't select titles where all the items on a title have these item types.
+EXCLUDE_ITYPES="ILL-BOOK,E-RESOURCE"
+SSH_SERVER='sirsi@edpl.sirsidynix.net'
+SSH_FLAGS=
+SSH_CMD="ssh $SSH_FLAGS $SSH_SERVER 'cat - | sqlite3 "$DB_ILS_LASTCOPY"' 2>/dev/null"
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -51,14 +66,21 @@ IS_TEST=false
 usage()
 {
     cat << EOFU!
-Usage: $0 [-option]
+Usage: $0 [-options]
  Application to collect data for last copy.
 
-
- -c, --collect_data Gets the latest data from the ILS.
+ -c, --circulating_copies=<integer> Sets the upper limit of items in
+   circulation for any arbitrary but specific title to be selected as
+   having 'last copy' status.
  -d, --debug turn on debug logging.
  -h, --help: display usage message and exit.
- -t, --test: Load data into the test database; $DB_DEV
+ -L, --Locations_excluded<string,locations> Sets the locations to exclude
+   when considering item selection. Multiple locations are separated by 
+   a comma (,), and must not include spaces unless the entire string is quoted.
+ -t, --test: Load data into the test database; $DB_DEV.
+ -T, --Types_excluded<string,iTypes> Sets the item types to exclude
+   when considering item selection. Multiple item types are separated by 
+   a comma (,), and must not include spaces unless the entire string is quoted.
  -v, --version: display application version and exit.
  -V, --VARS: Display all the variables set in the script.
  -x, --xhelp: display usage message and exit.
@@ -95,13 +117,24 @@ show_vars()
     echo "\$LOG=$LOG"
     echo "\$IS_TEST=$IS_TEST"
     echo "\$DB_CMD=$DB_CMD"
+    echo "\$NUM_CIRC_COPIES=$NUM_CIRC_COPIES"
+    echo "\$EXCLUDE_LOCATIONS=$EXCLUDE_LOCATIONS"
+    echo "\$EXCLUDE_ITYPES=$EXCLUDE_ITYPES"
+    echo "\$SSH_CMD=$SSH_CMD"
 }
 
+# Builds the queries to collect the data from the remote temp database.
 collect_data()
 {
-    logerr "TODO: implement this function."
     ## TODO: Set criteria and create queries for sqlite3 database.
     ## TODO: (Batch) import data into the mysql database.
+    # Build a query string that can be sent to the ILS to run on the database there.
+    # 1) Test the database is available.
+    local cmd='select count(*) from items;'
+    ## TODO: Fix this mess.
+    local results=$(echo -e "$cmd" | ssh $SSH_FLAGS $SSH_SERVER 'cat - | sqlite3 $DB_ILS_LASTCOPY' 2>/dev/null)
+    logit $result
+    logerr "TODO: Finish me."
 }
 
 ### Check input parameters.
@@ -110,7 +143,7 @@ collect_data()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "collect_data:,debug,help,test,version,VARS,xhelp" -o "cdhtvVx" -a -- "$@")
+options=$(getopt -l "circulating_copies:,debug,help,Locations_excluded:,test,Types_excluded:,version,VARS,xhelp" -o "c:dhL:tT:vVx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -119,21 +152,33 @@ eval set -- "$options"
 while true
 do
     case $1 in
-    -c|--collect_data)
-        logit "collecting data from the ILS."
+    -c|--circulating_copies)
+        shift
+        NUM_CIRC_COPIES=$1
+        [ "$DEBUG" == true ] && logit "Setting circulation copies to ${NUM_CIRC_COPIES}."
 		;;
     -d|--debug)
-        logit "turning on debugging"
+        [ "$DEBUG" == true ] || logit "Turning on debugging"
 		DEBUG=true
 		;;
     -h|--help)
         usage
         exit 0
         ;;
+    -L|--Locations_excluded)
+        shift
+        EXCLUDE_LOCATIONS="$1"
+        [ "$DEBUG" == true ] && logit "Excluding items in $EXCLUDE_LOCATIONS locations."
+        ;;
     -t|--test)
-        logit "using test database"
+        [ "$DEBUG" == true ] && logit "using test database"
 		IS_TEST=true
 		;;
+    -T|--Types_excluded)
+        shift
+        EXCLUDE_ITYPES="$1"
+        [ "$DEBUG" == true ] && logit "Excluding $EXCLUDE_ITYPES item types."
+        ;;
     -v|--version)
         echo "$0 version: $VERSION"
         exit 0
