@@ -33,8 +33,9 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.00.00"
-WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
+VERSION="1.00.02"
+WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
+# WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -122,7 +123,7 @@ compile_series()
     cat $allSeriesTitles | pipe.pl -B c1,c2 | pipe.pl -O c2,c1 | pipe.pl -o c0,c2 >$onlySeriesTitles
     # Remove any text after any ' ; ' which is used as the delimiter to the specific volumne information, and get rid of punctuation.
     logit "cleaning series info: $SERIES_LIST"
-    cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P >$SERIES_LIST
+    cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P | tee $SERIES_LIST
     [ -s "$SERIES_LIST" ] || logerr "failed to series list $SERIES_LIST."
     if [ "$DEBUG" == false ]; then
         rm $allSeriesTitles
