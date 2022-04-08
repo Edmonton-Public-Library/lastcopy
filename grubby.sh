@@ -123,11 +123,11 @@ find_last_copies()
 #     363|31221107619467  |CHECKEDOUT|BOOK|20220405|23|
     if [ "$GROUP_BY_TITLE" == true ]; then
         logit "starting group by title"
-        cat $allItems | pipe.pl -dc0 -J minc5 -P | pipe.pl -oc1,c0 | pipe.pl -C c1:ge30 | tee $GRUBBY_LIST
+        cat $allItems | pipe.pl -dc0 -J minc5 -P | pipe.pl -oc1,c0 | pipe.pl -C c1:ge30 >$GRUBBY_LIST
     else 
         # Restict list to items that have $MIN_CHARGES
         logit "starting select by count"
-        cat $allItems | pipe.pl -C c5:ge$MIN_CHARGES | pipe.pl -tc0 -oc1,c5 | tee $GRUBBY_LIST
+        cat $allItems | pipe.pl -C c5:ge$MIN_CHARGES | pipe.pl -tc0 -oc1,c5 >$GRUBBY_LIST
     fi
     if [ -s "$GRUBBY_LIST" ]; then
         if [ "$DEBUG" == false ]; then

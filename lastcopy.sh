@@ -152,7 +152,7 @@ find_last_copies()
     # Objective: Find all the cat keys with 0 or 1 visible items.
     # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
-    cat $allCKeyHoldCountVisibleCopyCount | pipe.pl -C c2:le$CIRC_COPIES | tee $LAST_COPY_LIST
+    cat $allCKeyHoldCountVisibleCopyCount | pipe.pl -C c2:le$CIRC_COPIES >$LAST_COPY_LIST
     [ -s "$LAST_COPY_LIST" ] || logerr "failed to create last copy list $LAST_COPY_LIST."
     if [ "$DEBUG" == false ]; then
         rm $allActiveHoldCKeys

@@ -123,7 +123,7 @@ compile_series()
     cat $allSeriesTitles | pipe.pl -B c1,c2 | pipe.pl -O c2,c1 | pipe.pl -o c0,c2 >$onlySeriesTitles
     # Remove any text after any ' ; ' which is used as the delimiter to the specific volumne information, and get rid of punctuation.
     logit "cleaning series info: $SERIES_LIST"
-    cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P | tee $SERIES_LIST
+    cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P >$SERIES_LIST
     [ -s "$SERIES_LIST" ] || logerr "failed to series list $SERIES_LIST."
     if [ "$DEBUG" == false ]; then
         rm $allSeriesTitles

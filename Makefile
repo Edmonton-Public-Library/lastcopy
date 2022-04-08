@@ -34,9 +34,10 @@ TEST_ILS=edpltest.sirsidynix.net
 USER=sirsi
 SERVER=ils@epl-ils.epl.ca
 # REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
-REMOTE=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
+REMOTE=/software/EDPL/Unicorn/Bincustom
+APP_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOCAL=~/projects/lastcopy
-APPS=lastcopy.sh Readme.md grubby.sh series.sh
+APPS=lastcopy.sh grubby.sh series.sh
 DRIVER=lastcopy_driver.sh items.awk titles.awk Readme.md
 
 test: 
@@ -44,4 +45,5 @@ test:
 	
 production: 
 	scp ${APPS} ${USER}@${PRODUCTION_ILS}:${REMOTE}
+	scp Readme.md ${USER}@${PRODUCTION_ILS}:${APP_DIR}
 	scp ${DRIVER} ils@epl-ils.epl.ca:/home/ils/last_copy/bin
