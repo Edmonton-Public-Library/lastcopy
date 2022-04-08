@@ -38,12 +38,13 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="0.03.00"
+VERSION="1.00.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
 LAST_COPY_LIST=$WORKING_DIR/${APP}.lst
+# Used as a regex with pipe.pl
 NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL'
 DEBUG=false
 CIRC_COPIES=1
@@ -92,7 +93,7 @@ logerr()
 # Displays variables.
 show_vars()
 {
-    logit "\$APP=$APP"
+    logit "\$APP=$0"
     logit "\$VERSION=$VERSION"
     logit "\$WORKING_DIR=$WORKING_DIR"
     logit "\$TMP_DIR=$TMP_DIR"

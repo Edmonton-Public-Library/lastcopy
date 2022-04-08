@@ -17,6 +17,27 @@ Several problems occur while trying to determine if a title is a risk.
 - Series titles are not cataloged consistently. Some use 490, and less frequently 830 tags to indicate volumes.
 - Similar titles should be identified to be merged.
 
+# Scripts
+* [lastcopy.sh](#last_copy)
+* [seriies.sh](#series) TBD
+* [grubby.sh](#grubby) TBD
+
+## Last Copy
+A simple shell script found in bincustom that computes which titles have one or fewer circulating copies. The number is configurable.
+
+The output of the script is a pipe-delimited file containing the cat key, number of holds, and number of visible copies.
+```bash
+2012345|5|1
+```
+Once collected additional information can be gotten via the Symphony API.
+
+## Series
+Collects all the titles related as a series.
+
+## Grubby
+Grubby list is a common term in libraries which refers to items that have more than a given number of circs. The twist here is we want to know all the titles whose entire set of circulatable copies have more than a given number of charges.
+
+
 # Schema
 Tables_in_appsng(_dev)
 * [last_copy_item_complete_statuses](#table-lastcopyitemcompletestatuses)
