@@ -70,6 +70,10 @@ Usage: $0 [-option]
  -l, --log=<path>: Appends logging to another log file.
  -t, --type<ITYPE1,ITYPE2,...>: Sets the item types for selection.
    You may choose this to remove item types like E-RESOURCE etc.
+ -T, --Titles: Sets the minimum charges (default $MIN_CHARGES, see -c)
+   that all items on a title must have to make the grubby list.
+   By default $APP reports select items that have at least $MIN_CHARGES
+   charges minimum.
  -v, --version: display application version and exit.
  -V, --VARS: Show variables used.
  -w, --working_dir=</foo/bar>: Set the working directory where report
