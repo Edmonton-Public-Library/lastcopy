@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.01.03"
+VERSION="1.01.05"
 TMP_DIR=/tmp
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
@@ -113,26 +113,26 @@ show_vars()
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
 {
-    local allItemCKeys=$TMP_DIR/${APP}_all_ckeys_item_count_zero_holds.lst
-    local allActiveHoldCKeys=$TMP_DIR/${APP}_all_active_holds_ckey.lst
-    local mergedCKeysICountsHolds=$TMP_DIR/${APP}_all_ckeys_ckeycount_holdcount.lst
-    local allItemLocations=$TMP_DIR/${APP}_all_active_holds_items_loc.lst
-    local allVisibleItems=$TMP_DIR/${APP}_all_visible_items.lst
-    local visibleItemCount=$TMP_DIR/${APP}_visible_item_count.lst
-    local allCKeyHoldCountVisibleCopyCount=$TMP_DIR/${APP}_all_ckey_hold_count_visible_copy_count.lst
+    local all_CKeyItemCount=$TMP_DIR/${APP}_all_ckey_itemcount.lst
+    local allActiveHolds_CKeyCount=$TMP_DIR/${APP}_all_activeholds_ckey_holdcount.lst
+    local merged_CKeyItemCountHoldCount=$TMP_DIR/${APP}_merged_ckey_itemcount_holdcount.lst
+    local allItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst
+    local allVisibleItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst
+    local visibleItems_ItemCount=$TMP_DIR/${APP}_visible_items_item_count.lst
+    local all_CKeyItemCountHoldCountVisibleCopyCount=$TMP_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst
     # Find all the ckeys for all items and make a zero hold list that matches format of the (next)
     # active holds list. This will give us a list of all last copies - with or without holds.
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
     # Example: 1005442|1|
     logit "selecting all items excluding $EXCLUDE_ITYPES"
-    selitem -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$allItemCKeys
-    [ -s "$allItemCKeys" ] || logerr "no items found??"
+    selitem -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
+    [ -s "$all_CKeyItemCount" ] || logerr "no items found??"
     # Find the count of active holds on each title.
     # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
     # Example: 1012345|5
     logit "selecting active holds"
-    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse >$allActiveHoldCKeys
-    [ -s "$allActiveHoldCKeys" ] || logerr "no active holds found."
+    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse >$allActiveHolds_CKeyCount
+    [ -s "$allActiveHolds_CKeyCount" ] || logerr "no active holds found."
     # Take the list of all ckeys with counts but no holds, and merge the list of all ckeys with holds.
     # Method: in a list of all ckeys, and ckeys with holds, if the ckeys match append the number of holds 
     # and zero '0' otherwise.
@@ -140,7 +140,7 @@ find_last_copies()
     # 1000045|2|1|
     # 1000056|7|3|
     logit "merging ckeys with item counts with ckeys with active hold counts"
-    cat $allItemCKeys | pipe.pl -0 $allActiveHoldCKeys -M c0:c0?c1.0 -P >$mergedCKeysICountsHolds
+    cat $all_CKeyItemCount | pipe.pl -0 $allActiveHolds_CKeyCount -M c0:c0?c1.0 -P >$merged_CKeyItemCountHoldCount
     # Given the list of cat keys with holds, find the locations of the items.
     # Method: Pipe cat keys into selitem outputting the cat key (barcode used for checking only) and location.
     # Example: 
@@ -148,16 +148,16 @@ find_last_copies()
     # 1000044|31221116612396  |INTRANSIT|1|0|
     # 1000056|31221101053291  |HOLDS|7|3|
     logit "selecting items on titles with active holds"
-    cat $mergedCKeysICountsHolds | selitem -iC -oCBmS 2>/dev/null >$allItemLocations
-    [ -s "$allItemLocations" ] || logerr "no items found."
+    cat $merged_CKeyItemCountHoldCount | selitem -iC -oCBmS 2>/dev/null >$allItems_CKeyBCodeLocationItemCountHoldCount
+    [ -s "$allItems_CKeyBCodeLocationItemCountHoldCount" ] || logerr "no items found."
     # Make a new list of items with only non-shadowed locations.
     # Method: Pipe the items and exclude hidden non-circulatable locations and save the list.
     # Example:
     # 1000044|31221116612396  |INTRANSIT|
     # 1000056|31221101053291  |HOLDS|
     [ "$DEBUG" == true ] && logit "removing items with non-circ locations."
-    cat $allItemLocations | pipe.pl -Gc2:"($NON_CIRC_LOCATIONS)" >$allVisibleItems
-    [ -s "$allVisibleItems" ] || logit "no visible items found."
+    cat $allItems_CKeyBCodeLocationItemCountHoldCount | pipe.pl -Gc2:"($NON_CIRC_LOCATIONS)" >$allVisibleItems_CKeyBCodeLocationItemCountHoldCount
+    [ -s "$allVisibleItems_CKeyBCodeLocationItemCountHoldCount" ] || logit "no visible items found."
     # Find all the cat ckeys and a count of circulatable items.
     # Mehod: De-duplicate all circulateable cat keys and add the count of duplicates to the end of each line.
     # Example:
@@ -165,7 +165,7 @@ find_last_copies()
     # 1000056|1
     # 1000084|3
     [ "$DEBUG" == true ] && logit "computing visible copy count for titles."
-    cat $allVisibleItems | pipe.pl -dc0 -A -P | pipe.pl -o c1,c0 >$visibleItemCount
+    cat $allVisibleItems_CKeyBCodeLocationItemCountHoldCount | pipe.pl -dc0 -A -P | pipe.pl -o c1,c0 >$visibleItems_ItemCount
     # Match ckeys with holds with ckeys with visible copies.
     # Method: pipe all the cat keys with holds, merge with the list of visible item counts, and if a cat key with holds
     #  matches a cat key with visible copies, add the visible copy count, otherwise add a zero (0).
@@ -173,20 +173,20 @@ find_last_copies()
     # 1000045|2|1|1|
     # 1000056|7|3|7|
     [ "$DEBUG" == true ] && logit "merging hold and visible copy lists."
-    cat $mergedCKeysICountsHolds | pipe.pl -0 $visibleItemCount -M c0:c0?c1.0 >$allCKeyHoldCountVisibleCopyCount
+    cat $merged_CKeyItemCountHoldCount | pipe.pl -0 $visibleItems_ItemCount -M c0:c0?c1.0 >$all_CKeyItemCountHoldCountVisibleCopyCount
     # Find all the cat keys with 0 or 1 visible items.
     # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
-    cat $allCKeyHoldCountVisibleCopyCount | pipe.pl -C c3:le$CIRC_COPIES -P >$LAST_COPY_LIST
+    cat $all_CKeyItemCountHoldCountVisibleCopyCount | pipe.pl -C c3:le$CIRC_COPIES -P >$LAST_COPY_LIST
     [ -s "$LAST_COPY_LIST" ] || logerr "failed to create last copy list $LAST_COPY_LIST."
     if [ "$DEBUG" == false ]; then
-        rm $allItemCKeys
-        rm $allActiveHoldCKeys
-        rm $mergedCKeysICountsHolds
-        rm $allItemLocations
-        rm $allVisibleItems
-        rm $visibleItemCount
-        rm $allCKeyHoldCountVisibleCopyCount
+        rm $all_CKeyItemCount
+        rm $allActiveHolds_CKeyCount
+        rm $merged_CKeyItemCountHoldCount
+        rm $allItems_CKeyBCodeLocationItemCountHoldCount
+        rm $allVisibleItems_CKeyBCodeLocationItemCountHoldCount
+        rm $visibleItems_ItemCount
+        rm $all_CKeyItemCountHoldCountVisibleCopyCount
     fi
 }
 
