@@ -34,7 +34,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.02.02"
+VERSION="1.03.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 # WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
@@ -47,6 +47,7 @@ GRUBBY_LIST=$WORKING_DIR/${APP}.lst
 GROUP_BY_TITLE=false
 DEBUG=false
 MIN_CHARGES=30
+SHOW_VARS=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -63,13 +64,16 @@ Usage: $0 [-option]
    to be considered 'grubby'. If -T is used the total charges of items
    (not including $EXCLUDE_LOCATIONS) is summed up, and item counts
    are reported.
- -d, --debug turn on debug logging.
+ -d, --debug turn on debug logging, write scratch files to the 
+   working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
  -l, --log=<path>: Appends logging to another log file.
  -t, --type<ITYPE1,ITYPE2,...>: Sets the item types for selection.
    You may choose this to remove item types like E-RESOURCE etc.
  -v, --version: display application version and exit.
  -V, --VARS: Show variables used.
+ -w, --working_dir=</foo/bar>: Set the working directory where report
+   output will be written.
  -x, --xhelp: display usage message and exit.
 
 EOFU!
@@ -144,7 +148,7 @@ find_last_copies()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "charges:,debug,help,log:,type:,Titles,version,VARS,xhelp" -o "c:dhl:t:TvVx" -a -- "$@")
+options=$(getopt -l "charges:,debug,help,log:,type:,Titles,version,VARS,working_dir:,xhelp" -o "c:dhl:t:TvVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -184,7 +188,14 @@ do
         exit 0
         ;;
     -V|--VARS)
-        show_vars
+        SHOW_VARS=true
+        ;;
+    -w|--working_dir)
+        shift
+        WORKING_DIR=$1
+        # Update the location of the grubby list since working dir has changed.
+        GRUBBY_LIST=$WORKING_DIR/${APP}.lst
+        logit "setting working directory to $WORKING_DIR"
         ;;
     -x|--xhelp)
         usage
@@ -197,6 +208,9 @@ do
     esac
     shift
 done
+# If the debug is on set the temp dir to working directory to make file checks easier.
+[ "$DEBUG" == true ] && TMP_DIR=$WORKING_DIR 
 logit "== starting $APP version: $VERSION"
+[ "$SHOW_VARS" == true ] && show_vars
 find_last_copies
 logit "done"

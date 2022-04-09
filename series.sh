@@ -33,7 +33,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.00.02"
+VERSION="1.01.01"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 # WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
@@ -41,6 +41,7 @@ LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
 SERIES_LIST=$WORKING_DIR/${APP}.lst
 DEBUG=false
+SHOW_VARS=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -53,11 +54,14 @@ Usage: $0 [-option]
  in pipe-delimited format.
    ckey|title holds|circulatable copy count
 
- -d, --debug turn on debug logging.
+ -d, --debug turn on debug logging, write scratch files to the 
+   working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
  -l, --log=<path>: Appends logging to another log file.
  -v, --version: display application version and exit.
  -V, --VARS: Show variables used.
+ -w, --working_dir=</foo/bar>: Set the working directory where report
+   output will be written.
  -x, --xhelp: display usage message and exit.
 
 EOFU!
@@ -104,20 +108,16 @@ compile_series()
         if (( db_age >= yesterday )); then
             # keep the list.
             logit "$SERIES_LIST is less than a day old, using the existing catalog selection."
-            # TODO: Uncomment after testing.
-            # return
-            # TODO: Remove this code after testing.
-            allSeriesTitles=./series.lst.bak
-        else
-            # Objective: Find all the titles and their 380 and 490 fields.
-            logit "selecting titles and information in the 380 and 490 fields."
-            selcatalog -oCe -e380,490 2>/dev/null >$allSeriesTitles
+            return
         fi
     fi
+    # Find all the titles and their 380 and 490 fields.
+    logit "selecting titles and information in the 380 and 490 fields."
+    selcatalog -oCe -e380,490 2>/dev/null >$allSeriesTitles
     [ -s "$allSeriesTitles" ] || logerr "no titles itendified."
     # The list should look as follows.
     # 2012345|-|Mistakes we both made ; vol. 9
-    # Objective: Use either the 380 or 490 as the actual field. Cataloguers seem to prefer the 490.
+    # Use either the 380 or 490 as the actual field. Cataloguers seem to prefer the 490.
     #  Once selected remove the text after the ';' since it varies sometimes by volume.
     logit "starting selection of titles with series info: $onlySeriesTitles"
     cat $allSeriesTitles | pipe.pl -B c1,c2 | pipe.pl -O c2,c1 | pipe.pl -o c0,c2 >$onlySeriesTitles
@@ -137,7 +137,7 @@ compile_series()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l ",debug,help,log:,version,VARS,xhelp" -o "dhl:vVx" -a -- "$@")
+options=$(getopt -l ",debug,help,log:,version,VARS,working_dir:,xhelp" -o "dhl:vVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -163,7 +163,14 @@ do
         exit 0
         ;;
     -V|--VARS)
-        show_vars
+        SHOW_VARS=true
+        ;;
+    -w|--working_dir)
+        shift
+        WORKING_DIR=$1
+        # Update the location of the last copy list since working dir has changed.
+        SERIES_LIST=$WORKING_DIR/${APP}.lst
+        logit "setting working directory to $WORKING_DIR"
         ;;
     -x|--xhelp)
         usage
@@ -176,6 +183,9 @@ do
     esac
     shift
 done
+# If the debug is on set the temp dir to working directory to make file checks easier.
+[ "$DEBUG" == true ] && TMP_DIR=$WORKING_DIR 
 logit "== starting $APP version: $VERSION"
+[ "$SHOW_VARS" == true ] && show_vars
 compile_series
 logit "done"
