@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.01.06"
+VERSION="1.01.07"
 TMP_DIR=/tmp
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
@@ -118,7 +118,7 @@ find_last_copies()
     local merged_CKeyItemCountHoldCount=$TMP_DIR/${APP}_merged_ckey_itemcount_holdcount.lst
     local allItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst
     local allVisibleItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst
-    local visibleItems_ItemCount=$TMP_DIR/${APP}_visible_items_item_count.lst
+    local visibleItems_ItemCount=$TMP_DIR/${APP}_visible_items_ckey_itemcount.lst
     local all_CKeyItemCountHoldCountVisibleCopyCount=$TMP_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst
     # Find all the ckeys for all items and make a zero hold list that matches format of the (next)
     # active holds list. This will give us a list of all last copies - with or without holds.
