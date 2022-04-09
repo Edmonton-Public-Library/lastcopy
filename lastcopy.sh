@@ -131,7 +131,7 @@ find_last_copies()
     # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
     # Example: 1012345|5
     logit "selecting active holds"
-    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse >$allActiveHolds_CKeyCount
+    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$allActiveHolds_CKeyCount
     [ -s "$allActiveHolds_CKeyCount" ] || logerr "no active holds found."
     # Take the list of all ckeys with counts but no holds, and merge the list of all ckeys with holds.
     # Method: in a list of all ckeys, and ckeys with holds, if the ckeys match append the number of holds 
@@ -173,7 +173,7 @@ find_last_copies()
     # 1000045|2|1|1|
     # 1000056|7|3|7|
     [ "$DEBUG" == true ] && logit "merging hold and visible copy lists."
-    cat $merged_CKeyItemCountHoldCount | pipe.pl -0 $visibleItems_ItemCount -M c0:c0?c1.0 >$all_CKeyItemCountHoldCountVisibleCopyCount
+    cat $merged_CKeyItemCountHoldCount | pipe.pl -0 $visibleItems_ItemCount -M c0:c0?c1.0 -P >$all_CKeyItemCountHoldCountVisibleCopyCount
     # Find all the cat keys with 0 or 1 visible items.
     # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
