@@ -125,7 +125,7 @@ find_last_copies()
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
     # Example: 1005442|1|
     logit "selecting all items excluding $EXCLUDE_ITYPES"
-    selitem -oC | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$allItemCKeys
+    selitem -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$allItemCKeys
     [ -s "$allItemCKeys" ] || logerr "no items found??"
     # Find the count of active holds on each title.
     # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
