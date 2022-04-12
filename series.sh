@@ -33,7 +33,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.01.01"
+VERSION="1.02.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 # WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
@@ -42,6 +42,7 @@ ALT_LOG=/dev/null
 SERIES_LIST=$WORKING_DIR/${APP}.lst
 DEBUG=false
 SHOW_VARS=false
+OUTPUT_CSV=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -50,10 +51,11 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-option]
- Creates a list of catalog keys, hold count, and visible copy counts
+ Creates a list of all cat keys and their associated series
  in pipe-delimited format.
-   ckey|title holds|circulatable copy count
+   ckey|series|
 
+ -C, --CSV: Output as CSV with headings.
  -d, --debug turn on debug logging, write scratch files to the 
    working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
@@ -95,6 +97,7 @@ show_vars()
     logit "\$ALT_LOG=$ALT_LOG"
     logit "\$SERIES_LIST=$SERIES_LIST"
     logit "\$DEBUG=$DEBUG"
+    logit "\$OUTPUT_CSV=$OUTPUT_CSV"
 }
 # Finds titles with last, or near to last copies in circulation.
 compile_series()
@@ -124,6 +127,10 @@ compile_series()
     # Remove any text after any ' ; ' which is used as the delimiter to the specific volumne information, and get rid of punctuation.
     logit "cleaning series info: $SERIES_LIST"
     cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P >$SERIES_LIST
+    if [ "$OUTPUT_CSV" == true ]; then
+        cat $SERIES_LIST | pipe.pl -oc0,c1 -TCSV_UTF-8:'CKey,Series' >${SERIES_LIST}.csv
+    fi
+
     [ -s "$SERIES_LIST" ] || logerr "failed to series list $SERIES_LIST."
     if [ "$DEBUG" == false ]; then
         rm $allSeriesTitles
@@ -137,7 +144,7 @@ compile_series()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l ",debug,help,log:,version,VARS,working_dir:,xhelp" -o "dhl:vVw:x" -a -- "$@")
+options=$(getopt -l "CSV,debug,help,log:,version,VARS,working_dir:,xhelp" -o "Cdhl:vVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -146,6 +153,10 @@ eval set -- "$options"
 while true
 do
     case $1 in
+    -C|--CSV)
+        OUTPUT_CSV=true
+        logit "setting output to CSV"
+        ;;
     -d|--debug)
         DEBUG=true
         ;;

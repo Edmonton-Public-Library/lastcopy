@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.01.07"
+VERSION="1.02.00"
 TMP_DIR=/tmp
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
@@ -51,6 +51,7 @@ CIRC_COPIES=1
 # Items in these locations don't count agains charges.
 EXCLUDE_ITYPES='~UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
 SHOW_VARS=false
+OUTPUT_CSV=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -59,13 +60,14 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-option]
- Creates a list of catalog keys, hold count, and visible copy counts
- in pipe-delimited format.
-   ckey|title holds|circulatable copy count
+ Creates a list of catalog keys, count of items on the title
+ hold count on the title, and visible copy counts in pipe-delimited format.
+   ckey|item count|title hold count|circulatable copy count|
 
  -c, --circ_copies=<integer> Sets the upper bound of circulate-able
    copies a title must have to make it to the 'last copy' list.
    Default is $CIRC_COPIES or less, which is usually fine.
+ -C, --CSV: Output as CSV with headings.
  -d, --debug turn on debug logging, write scratch files to the 
    working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
@@ -109,6 +111,7 @@ show_vars()
     logit "\$NON_CIRC_LOCATIONS=$NON_CIRC_LOCATIONS"
     logit "\$DEBUG=$DEBUG"
     logit "\$CIRC_COPIES=$CIRC_COPIES"
+    logit "\$OUTPUT_CSV=$OUTPUT_CSV"
 }
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
@@ -178,6 +181,7 @@ find_last_copies()
     # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
     cat $all_CKeyItemCountHoldCountVisibleCopyCount | pipe.pl -C c3:le$CIRC_COPIES -P >$LAST_COPY_LIST
+    [ "$OUTPUT_CSV" == true ] && cat $LAST_COPY_LIST | pipe.pl -oc0,c1,c2,c3 -TCSV_UTF-8:'CKey,NumItems,NumTHolds,NumCircable' >${LAST_COPY_LIST}.csv
     [ -s "$LAST_COPY_LIST" ] || logerr "failed to create last copy list $LAST_COPY_LIST."
     if [ "$DEBUG" == false ]; then
         rm $all_CKeyItemCount
@@ -196,7 +200,7 @@ find_last_copies()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "circ_copies:,debug,help,log:,version,VARS,working_dir:,xhelp" -o "c:dhl:vVw:x" -a -- "$@")
+options=$(getopt -l "circ_copies:,CSV,debug,help,log:,version,VARS,working_dir:,xhelp" -o "c:Cdhl:vVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -209,6 +213,10 @@ do
         shift
         CIRC_COPIES=$1
         logit "setting circulatable copies to $CIRC_COPIES"
+        ;;
+    -C|--CSV)
+        OUTPUT_CSV=true
+        logit "setting output to CSV"
         ;;
     -d|--debug)
         DEBUG=true

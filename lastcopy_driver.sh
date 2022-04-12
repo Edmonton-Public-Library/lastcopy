@@ -40,7 +40,8 @@ WORKING_DIR=$HOME_DIR/last_copy
 VERSION="0.01.00_DEV"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
-DB_ILS_LASTCOPY=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test/lastcopy.db
+ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
+LASTCOPY_FILES="*.lst"
 DEBUG=false
 LOG=$WORKING_DIR/lastcopy_driver.log
 DB_CMD="mysql --defaults-file"
@@ -56,9 +57,11 @@ LAST_ACTIVE=
 EXCLUDE_LOCATIONS="INTERNET,HOME"
 # Don't select titles where all the items on a title have these item types.
 EXCLUDE_ITYPES="ILL-BOOK,E-RESOURCE"
-SSH_SERVER='sirsi@edpl.sirsidynix.net'
-SSH_FLAGS=
-SSH_CMD="ssh $SSH_FLAGS $SSH_SERVER 'cat - | sqlite3 "$DB_ILS_LASTCOPY"' 2>/dev/null"
+PRODUCTION_ILS='sirsi@edpl.sirsidynix.net'
+TEST_ILS='sirsi@edpltest.sirsidynix.net'
+SSH_SERVER=$PRODUCTION_ILS
+
+SHOW_VARS=false
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -76,11 +79,11 @@ Usage: $0 [-options]
  -h, --help: display usage message and exit.
  -L, --Locations_excluded<string,locations> Sets the locations to exclude
    when considering item selection. Multiple locations are separated by 
-   a comma (,), and must not include spaces unless the entire string is quoted.
+   a comma (,) and must not include spaces.
  -t, --test: Load data into the test database; $DB_DEV.
  -T, --Types_excluded<string,iTypes> Sets the item types to exclude
    when considering item selection. Multiple item types are separated by 
-   a comma (,), and must not include spaces unless the entire string is quoted.
+   a comma (,) and must not include spaces.
  -v, --version: display application version and exit.
  -V, --VARS: Display all the variables set in the script.
  -x, --xhelp: display usage message and exit.
@@ -128,12 +131,7 @@ collect_data()
 {
     ## TODO: Set criteria and create queries for sqlite3 database.
     ## TODO: (Batch) import data into the mysql database.
-    # Build a query string that can be sent to the ILS to run on the database there.
-    # 1) Test the database is available.
-    local cmd='select count(*) from items;'
-    ## TODO: Fix this mess.
-    local results=$(echo -e "$cmd" | ssh $SSH_FLAGS $SSH_SERVER 'cat - | sqlite3 $DB_ILS_LASTCOPY' 2>/dev/null)
-    logit $result
+
     logerr "TODO: Finish me."
 }
 
@@ -172,6 +170,7 @@ do
         ;;
     -t|--test)
         [ "$DEBUG" == true ] && logit "using test database"
+        SSH_SERVER=$TEST_SERVER
 		IS_TEST=true
 		;;
     -T|--Types_excluded)
@@ -184,7 +183,7 @@ do
         exit 0
         ;;
     -V|--VARS)
-        show_vars
+        SHOW_VARS=true
         ;;
     -x|--xhelp)
         usage
@@ -206,7 +205,8 @@ else
     DB_CMD="${DB_CMD}=${DB_PRODUCTION}"
     MSG="$MSG "`grep "database" $DB_PRODUCTION`
 fi
+[ "$SHOW_VARS" == true ] && show_vars
 logit "$MSG"
-logit "testing freshness of item information"
-[ $DEBUG == true ] && logit "collecting data from the ILS."
+logit "collecting data from the ILS."
+scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR
 collect_data

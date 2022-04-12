@@ -34,7 +34,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.03.02"
+VERSION="1.04.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 # WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
@@ -48,6 +48,7 @@ GROUP_BY_TITLE=false
 DEBUG=false
 MIN_CHARGES=30
 SHOW_VARS=false
+OUTPUT_CSV=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -56,14 +57,18 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-option]
- Creates a list of catalog keys, hold count, and visible copy counts
- in pipe-delimited format.
-   ckey|title holds|circulatable copy count
+ Creates a list of items that have more than a given number of circs,
+ or a list of titles whose items all have a minimum of a given number
+ of circs.
+   ckey|minimum circ count|
+ or by default
+   item ID|circ count|
 
  -c, --charges=<integer> Sets the minimum number of charges for items
    to be considered 'grubby'. If -T is used the total charges of items
    (not including $EXCLUDE_LOCATIONS) is summed up, and item counts
    are reported.
+ -C, --CSV: Output as CSV with headings.
  -d, --debug turn on debug logging, write scratch files to the 
    working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
@@ -112,6 +117,7 @@ show_vars()
     logit "\$GRUBBY_LIST=$GRUBBY_LIST"
     logit "\$DEBUG=$DEBUG"
     logit "\$MIN_CHARGES=$MIN_CHARGES"
+    logit "\$OUTPUT_CSV=$OUTPUT_CSV"
 }
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
@@ -131,11 +137,13 @@ find_last_copies()
 #     363|31221107619467  |CHECKEDOUT|BOOK|20220405|23|
     if [ "$GROUP_BY_TITLE" == true ]; then
         logit "starting group by title"
-        cat $allItems | pipe.pl -dc0 -J minc5 -P | pipe.pl -oc1,c0 | pipe.pl -C c1:ge${MIN_CHARGES} >$GRUBBY_LIST
+        cat $allItems | pipe.pl -dc0 -J minc5 -P | pipe.pl -oc1,c0 | pipe.pl -C c1:ge${MIN_CHARGES} -P >$GRUBBY_LIST
+        [ "$OUTPUT_CSV" == true ] && cat $GRUBBY_LIST | pipe.pl -oc0,c1 -TCSV_UTF-8:'CKey,MinCircCount' >${GRUBBY_LIST}.csv
     else 
         # Restict list to items that have $MIN_CHARGES
         logit "starting select by count"
-        cat $allItems | pipe.pl -C c5:ge$MIN_CHARGES | pipe.pl -tc1 -oc1,c5 >$GRUBBY_LIST
+        cat $allItems | pipe.pl -C c5:ge$MIN_CHARGES | pipe.pl -tc1 -oc1,c5 -P >$GRUBBY_LIST
+        [ "$OUTPUT_CSV" == true ] && cat $GRUBBY_LIST | pipe.pl -oc0,c1 -TCSV_UTF-8:'ItemID,CircCount' >${GRUBBY_LIST}.csv
     fi
     if [ -s "$GRUBBY_LIST" ]; then
         if [ "$DEBUG" == false ]; then
@@ -152,7 +160,7 @@ find_last_copies()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "charges:,debug,help,log:,type:,Titles,version,VARS,working_dir:,xhelp" -o "c:dhl:t:TvVw:x" -a -- "$@")
+options=$(getopt -l "charges:,CSV,debug,help,log:,type:,Titles,version,VARS,working_dir:,xhelp" -o "c:Cdhl:t:TvVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -165,6 +173,10 @@ do
         shift
         MIN_CHARGES=$1
         logit "setting circulatable copies to $MIN_CHARGES"
+        ;;
+    -C|--CSV)
+        OUTPUT_CSV=true
+        logit "setting output to CSV"
         ;;
     -d|--debug)
         DEBUG=true
