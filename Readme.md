@@ -18,25 +18,36 @@ Several problems occur while trying to determine if a title is a risk.
 - Similar titles should be identified to be merged.
 
 # Scripts
-* [lastcopy.sh](#last_copy)
-* [seriies.sh](#series) TBD
-* [grubby.sh](#grubby) TBD
+* [lastcopy.sh](#last_copy) Reports all titles, the number of items, holds, and circulatable copies on the title.
+* [series.sh](#series) report titles and the series to which they belong.
+* [grubby.sh](#grubby) report items with more than 'n' circs, or alternatively titles all of who's items have more than 'n' circs.
 
 ## Last Copy
 A simple shell script found in bincustom that computes which titles have one or fewer circulating copies. The number is configurable.
 
 The output of the script is a pipe-delimited file containing the cat key, number of holds, and number of visible copies.
 ```bash
-2012345|5|1
+ckey   |items|holds|circulatable copies|
+1000009|1|0|1|
+1000012|1|0|0|
 ```
 Once collected additional information can be gotten via the Symphony API.
 
 ## Series
 Collects all the titles related as a series.
+```bash
+ckey   |series              |
+2474268|Yao guai xin wen she|
+2474269|Yao guai xin wen she|
+```
 
 ## Grubby
 Grubby list is a common term in libraries which refers to items that have more than a given number of circs. The twist here is we want to know all the titles whose entire set of circulatable copies have more than a given number of charges.
-
+```bash
+ckey   |Minimum circs on all items|              |
+1000009|88|
+1000028|33|
+```
 
 # Schema
 Tables_in_appsng(_dev)
@@ -66,9 +77,7 @@ Contains information about specific items. These items have been identified as r
 | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
 |:---|---:|---:|---:|---:|---:|
 | id | bigint | unsigned | NO | PRI | NULL | 
-| last_copy_title_id | bigint | unsigned | NO | MUL | NULL | 
-| call_number | int | NO | NULL | 
-| copy_number | int | NO | NULL | 
+| last_copy_title_id | bigint | unsigned | NO | MUL | NULL |  
 | checkouts | int | NO | NULL | 
 | current_location | varchar(255) | NO | NULL | 
 | item_type | varchar(25) | NO | NULL | 

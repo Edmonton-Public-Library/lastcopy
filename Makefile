@@ -42,8 +42,9 @@ DRIVER=lastcopy_driver.sh items.awk titles.awk Readme.md
 
 test: 
 	scp ${APPS} ${USER}@${TEST_ILS}:${REMOTE}
+	scp Readme.md lastcopy_compiler.sh ${USER}@${TEST_ILS}:${APP_DIR}
 	
 production: 
 	scp ${APPS} ${USER}@${PRODUCTION_ILS}:${REMOTE}
-	scp Readme.md ${USER}@${PRODUCTION_ILS}:${APP_DIR}
+	scp Readme.md lastcopy_compiler.sh ${USER}@${PRODUCTION_ILS}:${APP_DIR}
 	scp ${DRIVER} ils@epl-ils.epl.ca:/home/ils/last_copy/bin

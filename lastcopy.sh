@@ -130,6 +130,7 @@ find_last_copies()
     logit "selecting all items excluding $EXCLUDE_ITYPES"
     selitem -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
     [ -s "$all_CKeyItemCount" ] || logerr "no items found??"
+    ## TODO: add total circs to the list of data collected.
     # Find the count of active holds on each title.
     # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
     # Example: 1012345|5

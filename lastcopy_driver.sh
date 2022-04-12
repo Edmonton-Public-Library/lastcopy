@@ -129,9 +129,9 @@ show_vars()
 # Builds the queries to collect the data from the remote temp database.
 collect_data()
 {
-    ## TODO: Set criteria and create queries for sqlite3 database.
-    ## TODO: (Batch) import data into the mysql database.
-
+    ## Figure out what data we need, collect it from the lastcopy, grubby, and series
+    ## lst files on the ILS.
+    
     logerr "TODO: Finish me."
 }
 
@@ -208,5 +208,5 @@ fi
 [ "$SHOW_VARS" == true ] && show_vars
 logit "$MSG"
 logit "collecting data from the ILS."
-scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR
+# scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR
 collect_data
