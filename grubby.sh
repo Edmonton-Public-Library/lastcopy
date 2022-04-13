@@ -34,7 +34,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.04.00"
+VERSION="1.04.01"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 # WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
 TMP_DIR=/tmp
@@ -229,4 +229,5 @@ done
 logit "== starting $APP version: $VERSION"
 [ "$SHOW_VARS" == true ] && show_vars
 find_last_copies
-logit "done"
+logit "== done =="
+exit 0

@@ -1,13 +1,18 @@
 #!usr/bin/env awk
 
+# Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
-    insertStatement = "INSERT OR IGNORE INTO titles (CKey, TCN, Author, Title, PubYear, Series, THolds) VALUES ";
-    print "BEGIN TRANSACTION;"
+    # 1000009|Victims [sound recording] : [an Alex Delaware novel] / Jonathan Kellerman|Kellerman, Jonathan|2012|0|
+    # 1000012|Story of the Titanic / illustration, Steve Noon ; consultant, Eric Kentley|Noon, Steve|2012|0|
+    # 1000028|The life and times of Benjamin Franklin [sound recording] / H.W. Brands|Brands, H. W.|2003|0|
+    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|0|
+    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|0|
+    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
-    max_query_lines = 150;
+    max_query_lines = 1500;
 }
 
 
@@ -15,32 +20,21 @@ BEGIN {
 /^[0-9]/ {
     if (count == max_query_lines) {
         count = 0;
-        printf ";\nEND TRANSACTION;\nBEGIN TRANSACTION;\n" insertStatement "\n";
+        printf ";\nCOMMIT;\n" insertStatement "\n";
     } 
     if (count > 0){
         printf ",\n";
     }
-    ## Duplicate chars to compensate for syntax hi-lite not resetting on end of this regex.
-    ## Remove quotes from titles. Add to regex if you find more characters that break the INSERT SQL.
-    gsub(/[`,]/, "", $0);
-    ## Get rid of the trailing space in TCNs.
-    gsub(/[ ]+$/, "", $2);
-    tcn = $2;
-    ## Determine series information.
-    series = "na";
-    if ($6 ~ /[0-9A-Za-z]/) {
-        series = $6;
+    gsub(/['\\]/, "", $0);
+    title = $2;
+    if (length(title) > 255) {
+        title = sprintf("%s...", substr(title, 0, 251));
     }
-    # More commonly series info is in the 490. If it is overwrite 'series' var and if not, it was set to either 380 or 'na' above.
-    if ($7 ~ /[0-9A-Za-z]/) {
-        series = $7;
+    author = $3;
+    if (length(author) > 255) {
+        author = sprintf("%s...", substr(author, 0, 251));
     }
-    ## Typically series is just a phrase like 'Potter House series', but sometimes it's more like:
-    ## 'Tom Clancy's Op-Center series ; v. 18'. In these cases let's strip off everything after the ';'
-    gsub(/;.+$/, "", series);
-    # Trim off the last space before the end if necessary.
-    gsub(/[ ]+$/, "", series);
-    printf "(%d, '%s', '%s', '%s', %d, '%s', %d)",$1,tcn,$3,$4,$5,series,$8;
+    printf "(%d, '%s', '%s', %d, %d)",$1,title,author,$4,$5;
     if (count == -1){
         printf ",\n";
     }
@@ -48,6 +42,5 @@ BEGIN {
 } 
 
 END {
-    print ";";
-    print "END TRANSACTION;";
+    print ";\nCOMMIT;";
 }

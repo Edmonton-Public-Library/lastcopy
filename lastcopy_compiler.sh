@@ -36,7 +36,7 @@
 ## TODO: Continue refactoring to match requirements above.
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh $0)
-VERSION="0.00.01_DEV"
+VERSION="1.00.03"
 DEBUG=false
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -45,9 +45,9 @@ LASTCOPY_TITLES="$WORKING_DIR/lastcopy.lst"
 ## Use the checkouts on items and summarize in query.
 # LASTCOPY_GRUBBY="$WORKING_DIR/grubby.lst"
 LASTCOPY_SERIES="$WORKING_DIR/series.lst"
-APPSNG_TITLES="$WORKING_DIR/last_copy_titles.lst"
-APPSNG_ITEMS="$WORKING_DIR/last_copy_items.lst"
-APPSNG_SERIES="$WORKING_DIR/last_copy_series.lst"
+APPSNG_TITLES="$WORKING_DIR/last_copy_titles.table"
+APPSNG_ITEMS="$WORKING_DIR/last_copy_items.table"
+APPSNG_SERIES="$WORKING_DIR/last_copy_series.table"
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -94,6 +94,11 @@ show_vars()
     echo "\$DEBUG=$DEBUG"
     echo "\$LOG=$LOG"
     echo "\$ALT_LOG=$ALT_LOG"
+    echo "\$LASTCOPY_TITLES=$LASTCOPY_TITLES"
+    echo "\$LASTCOPY_SERIES=$LASTCOPY_SERIES"
+    echo "\$APPSNG_TITLES=$APPSNG_TITLES"
+    echo "\$APPSNG_ITEMS=$APPSNG_ITEMS"
+    echo "\$APPSNG_SERIES=$APPSNG_SERIES"
 }
 
 compile_lastcopy_lists()
@@ -136,8 +141,8 @@ compile_lastcopy_lists()
     # 1000044|3|1|1|
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|20211215|20211206|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|20220302|20220302|
-    logit "compiling title information."
-    cat $LASTCOPY_TITLES | selitem -iC -oBCcmthan 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >$APPSNG_ITEMS
+    logit "compiling item information."
+    cat $LASTCOPY_TITLES | selitem -iC -oBCdmthan 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >$APPSNG_ITEMS
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|
     ## Series information.
@@ -154,7 +159,7 @@ compile_lastcopy_lists()
     # 211|North of 52 Collection|
     # 215|North of 52 Collection|
     logit "compiling series information."
-    cp $LASTCOPY_SERIES >$APPSNG_SERIES
+    cp $LASTCOPY_SERIES $APPSNG_SERIES
 }
 
 ### Check input parameters.

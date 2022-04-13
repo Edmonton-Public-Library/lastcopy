@@ -38,7 +38,7 @@ REMOTE=/software/EDPL/Unicorn/Bincustom
 APP_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOCAL=~/projects/lastcopy
 APPS=lastcopy.sh grubby.sh series.sh
-DRIVER=lastcopy_driver.sh items.awk titles.awk Readme.md
+DRIVER=lastcopy_driver.sh items.awk titles.awk series.awk Readme.md
 
 test: 
 	scp ${APPS} ${USER}@${TEST_ILS}:${REMOTE}

@@ -41,18 +41,12 @@ VERSION="0.01.00_DEV"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
-LASTCOPY_FILES="*.lst"
+LASTCOPY_FILES="*.table"
 DEBUG=false
 LOG=$WORKING_DIR/lastcopy_driver.log
 DB_CMD="mysql --defaults-file"
 IS_TEST=false
 # These locations put a title at risk of not having circulatable copies.
-DISCARD_LOCATIONS=DAMAGE,DISCARD,LOST,LOST-ASSUM,LOST-CLAIM,MISSING
-NUM_HOLDS=
-NUM_CIRC_COPIES=1
-NUM_CHARGES=
-LAST_CHARGED=
-LAST_ACTIVE=
 # Don't select titles where all the items on a title have these locations.
 EXCLUDE_LOCATIONS="INTERNET,HOME"
 # Don't select titles where all the items on a title have these item types.
@@ -60,7 +54,9 @@ EXCLUDE_ITYPES="ILL-BOOK,E-RESOURCE"
 PRODUCTION_ILS='sirsi@edpl.sirsidynix.net'
 TEST_ILS='sirsi@edpltest.sirsidynix.net'
 SSH_SERVER=$PRODUCTION_ILS
-
+SERIES_AWK="$WORKING_DIR/bin/series.awk"
+ITEMS_AWK="$WORKING_DIR/bin/items.awk"
+TITLES_AWK="$WORKING_DIR/bin/titles.awk"
 SHOW_VARS=false
 ###############################################################################
 # Display usage message.
@@ -70,17 +66,20 @@ usage()
 {
     cat << EOFU!
 Usage: $0 [-options]
- Application to collect data for last copy.
+ Fetches last copy data from the ILS compiles it into SQL statements
+ and loads it into production appsng database by default, or appsng_dev
+ if --test is used.
 
- -c, --circulating_copies=<integer> Sets the upper limit of items in
-   circulation for any arbitrary but specific title to be selected as
-   having 'last copy' status.
+ When fetching files, they are SCP'd from either production or test ILS,
+ and then compiled into SQL statements. If the local files are less than
+ an hour old they are used, and fresh ones copied over otherwise.
+
  -d, --debug turn on debug logging.
  -h, --help: display usage message and exit.
  -L, --Locations_excluded<string,locations> Sets the locations to exclude
    when considering item selection. Multiple locations are separated by 
    a comma (,) and must not include spaces.
- -t, --test: Load data into the test database; $DB_DEV.
+ -t, --test: Load data into the appsng test database.
  -T, --Types_excluded<string,iTypes> Sets the item types to exclude
    when considering item selection. Multiple item types are separated by 
    a comma (,) and must not include spaces.
@@ -120,19 +119,65 @@ show_vars()
     echo "\$LOG=$LOG"
     echo "\$IS_TEST=$IS_TEST"
     echo "\$DB_CMD=$DB_CMD"
-    echo "\$NUM_CIRC_COPIES=$NUM_CIRC_COPIES"
     echo "\$EXCLUDE_LOCATIONS=$EXCLUDE_LOCATIONS"
     echo "\$EXCLUDE_ITYPES=$EXCLUDE_ITYPES"
-    echo "\$SSH_CMD=$SSH_CMD"
+    echo "\$SSH_SERVER=$SSH_SERVER"
+    echo "\$SERIES_AWK=$SERIES_AWK"
+    echo "\$ITEMS_AWK=$ITEMS_AWK"
+    echo "\$TITLES_AWK=$TITLES_AWK"
 }
 
 # Builds the queries to collect the data from the remote temp database.
 collect_data()
 {
+    # local appsng_titles="last_copy_titles.table"
+    # local appsng_items="last_copy_items.table"
+    # local appsng_series="last_copy_series.table"
+    local appsng_titles="$WORKING_DIR/last_copy_titles.table"
+    local appsng_items="$WORKING_DIR/last_copy_items.table"
+    local appsng_series="$WORKING_DIR/last_copy_series.table"
     ## Figure out what data we need, collect it from the lastcopy, grubby, and series
     ## lst files on the ILS.
-    
-    logerr "TODO: Finish me."
+    if [ -s "$appsng_items" ]; then
+        local an_hour_ago=$(date -d 'now - 1 hours' +%s)
+        local src_file_age=$(date -r "$appsng_items" +%s)
+        if (( src_file_age <= an_hour_ago )); then
+            logit "copying data from the ILS."
+            if ! scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR ; then
+                logerr "scp command $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR failed!"
+            fi
+        else
+            logit "the existing files are less than an hour old, using them."
+        fi
+    fi
+    [ -s "$appsng_titles" ] || logerr "$appsng_titles are missing or empty."
+    [ -s "$appsng_items" ] || logerr "$appsng_items are missing or empty."
+    [ -s "$appsng_series" ] || logerr "$appsng_series are missing or empty."
+
+    local titles_sql="$WORKING_DIR/titles.sql"
+    local items__sql="$WORKING_DIR/items.sql"
+    local series_sql="$WORKING_DIR/series.sql"
+    ## Remove the old sql statements you should have reviewed them before now.
+    [ -s "$titles_sql" ] && rm $titles_sql
+    [ -s "$items__sql" ] && rm $items__sql
+    [ -s "$series_sql" ] && rm $series_sql
+    logit "compiling titles sql statements"
+    awk -f $TITLES_AWK $appsng_titles >$titles_sql
+    ## TODO: parse items into SQL statements.
+    # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|
+    # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|
+    logit "compiling items sql statements"
+    awk -f $ITEMS_AWK $appsng_items >$items__sql
+    ## TODO: parse series into SQL statements.
+    logit "compiling series sql statements"
+    awk -f $SERIES_AWK $appsng_series >$series_sql
+    ## **This one must be the first to load **.
+    logit "starting to load $appsng_titles:"
+    $DB_CMD <$titles_sql #2>>$LOG
+    logit "starting to load $items__sql:"
+    $DB_CMD <$items__sql #2>>$LOG
+    logit "starting to load $series_sql:"
+    $DB_CMD <$series_sql #2>>$LOG
 }
 
 ### Check input parameters.
@@ -141,7 +186,7 @@ collect_data()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "circulating_copies:,debug,help,Locations_excluded:,test,Types_excluded:,version,VARS,xhelp" -o "c:dhL:tT:vVx" -a -- "$@")
+options=$(getopt -l "debug,help,Locations_excluded:,test,Types_excluded:,version,VARS,xhelp" -o "dhL:tT:vVx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -150,11 +195,6 @@ eval set -- "$options"
 while true
 do
     case $1 in
-    -c|--circulating_copies)
-        shift
-        NUM_CIRC_COPIES=$1
-        [ "$DEBUG" == true ] && logit "Setting circulation copies to ${NUM_CIRC_COPIES}."
-		;;
     -d|--debug)
         [ "$DEBUG" == true ] || logit "Turning on debugging"
 		DEBUG=true
@@ -197,16 +237,24 @@ do
     shift
 done
 logit "== starting $0 version: $VERSION"
+[ -s "$SERIES_AWK" ] || logerr "Required file $SERIES_AWK missing or empty."
+[ -s "$ITEMS_AWK" ] || logerr "Required file $ITEMS_AWK missing or empty."
+[ -s "$TITLES_AWK" ] || logerr "Required file $TITLES_AWK missing or empty."
 MSG="Loading data to "
 if [ "$IS_TEST" == true ]; then
     DB_CMD="${DB_CMD}=${DB_DEV}"
     MSG="$MSG "`grep "database" $DB_DEV`
+    ## Intentionally production because the test files are produced for accuracty.
+    ## Ironically, once this is in production you can change it to:
+    # SSH_SERVER=$TEST_ILS
+    SSH_SERVER=$PRODUCTION_ILS
 else
     DB_CMD="${DB_CMD}=${DB_PRODUCTION}"
     MSG="$MSG "`grep "database" $DB_PRODUCTION`
+    SSH_SERVER=$PRODUCTION_ILS
 fi
 [ "$SHOW_VARS" == true ] && show_vars
 logit "$MSG"
-logit "collecting data from the ILS."
-# scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR
 collect_data
+logit "== done =="
+exit 0

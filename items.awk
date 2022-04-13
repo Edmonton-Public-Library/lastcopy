@@ -1,52 +1,49 @@
 #!usr/bin/env awk
 
-## Create sql insert statements for hicirc counts on titles.
+## Create MySQL insert statements for items.
 BEGIN {
     FS="|";
-    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
-    # 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
-    insertStatement = "INSERT OR IGNORE INTO items (CKey, ShelfKey, CurrLoc, IType, LActive, LCharged, BCode, Charges, CHolds) VALUES ";
-    print "BEGIN TRANSACTION;"
+    # id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged
+    # 31221069638372|451033|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
+    # 31221070218743|498461|20|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
+    # 31221073208600|498521|0|DISCARD|JDVD21|0|2017-04-09|2017-04-03|
+    # Added an empty field for 'notes' because the database doesn't allow empty values (yet)
+    # ****** THIS MUST CHANGE OR ANY DATA STAFF ENTER WILL BE DELETED!! *****
+    insertStatement = "REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, notes, is_reviewed) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
-    max_query_lines = 150;
+    max_query_lines = 1500;
     default_date = "1900-01-01";
 }
-
 
 # For any non-empty entry print the values to insert to the Items table.
 /^[0-9]/ {
     if (count == max_query_lines) {
         count = 0;
-        printf ";\nEND TRANSACTION;\nBEGIN TRANSACTION;\n" insertStatement "\n";
+        printf ";\nCOMMIT;\n" insertStatement "\n";
     } 
     if (count > 0){
         printf ",\n";
     }
-    
+    gsub(/[`,']/, "", $0);
     last_active = default_date;
-    if (length($5) == 8){
-        # Format the date into a ISO standard date: YYYY-MM-DD.
-        year = substr($5,1,4);
-        month= substr($5,5,2);
-        day  = substr($5,7);
-        last_active = sprintf("%d-%02d-%02d",year,month,day);
+    if ($7 == "" || $7 == "0"){
+        last_active = default_date;
+    } else {
+        last_active = $7;
     }
-    last_charged = default_date;
-    if (length($6) == 8){
-        # Format the date into a ISO standard date: YYYY-MM-DD.
-        year = substr($6,1,4);
-        month= substr($6,5,2);
-        day  = substr($6,7);
-        last_charged = sprintf("%d-%02d-%02d",year,month,day);
+    
+    if ($8 == "" || $8 == "0"){
+        last_charged = default_date;
+    } else {
+        last_charged = $8;
     }
-    gsub(/[`,]/, "", $0);
-    ## Get rid of the trailing space in bar codes.
-    gsub(/[ ]+$/, "", $7);
-    # CKey, ShelfKey, CurrLoc, Type, LActive, LCharged, BCode, Charges, CHolds
-    # 548305|DVD J SER LEM|STOLEN|JDVD21|20091120|20091120|31221092798581  |16|0|
-    printf "(%d,'%s','%s','%s','%s','%s',%d,%d,%d)",$1,$2,$3,$4,last_active,last_charged,$7,$8,$9;
+    # id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged
+    # 31221073208600|498521|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
+    # Added an empty field for 'notes' because the database doesn't allow empty values (yet)
+    # ****** THIS MUST CHANGE OR ANY DATA STAFF ENTER WILL BE DELETED!! *****
+    printf "(%d,%d,%d,'%s','%s',%d,'%s','%s','notes','2022-01-01')",$1,$2,$3,$4,$5,$6,last_active,last_charged;
     if (count == -1){
         printf ",\n";
     }
@@ -54,6 +51,5 @@ BEGIN {
 } 
 
 END {
-    print ";";
-    print "END TRANSACTION;";
+    print ";\nCOMMIT;";
 }
