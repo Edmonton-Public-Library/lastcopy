@@ -37,7 +37,7 @@
 ###############################################################################
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="0.01.00_DEV"
+VERSION="1.00.00"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
