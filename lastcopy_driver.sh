@@ -37,7 +37,7 @@
 ###############################################################################
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="1.00.00"
+VERSION="1.02.00"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
@@ -57,7 +57,9 @@ SSH_SERVER=$PRODUCTION_ILS
 SERIES_AWK="$WORKING_DIR/bin/series.awk"
 ITEMS_AWK="$WORKING_DIR/bin/items.awk"
 TITLES_AWK="$WORKING_DIR/bin/titles.awk"
+RUN_TABLE_COMPILER="$ILS_WORKING_DIR/lastcopy_compiler.sh"
 SHOW_VARS=false
+COMPILE_FRESH_TABLES=false
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -74,15 +76,12 @@ Usage: $0 [-options]
  and then compiled into SQL statements. If the local files are less than
  an hour old they are used, and fresh ones copied over otherwise.
 
+ -c, --compile Compile fresh table files on the ILS. Takes more time.
+   If the existing files in $WORKING_DIR are still fresh this option 
+   is ignored.
  -d, --debug turn on debug logging.
  -h, --help: display usage message and exit.
- -L, --Locations_excluded<string,locations> Sets the locations to exclude
-   when considering item selection. Multiple locations are separated by 
-   a comma (,) and must not include spaces.
  -t, --test: Load data into the appsng test database.
- -T, --Types_excluded<string,iTypes> Sets the item types to exclude
-   when considering item selection. Multiple item types are separated by 
-   a comma (,) and must not include spaces.
  -v, --version: display application version and exit.
  -V, --VARS: Display all the variables set in the script.
  -x, --xhelp: display usage message and exit.
@@ -119,8 +118,8 @@ show_vars()
     echo "\$LOG=$LOG"
     echo "\$IS_TEST=$IS_TEST"
     echo "\$DB_CMD=$DB_CMD"
-    echo "\$EXCLUDE_LOCATIONS=$EXCLUDE_LOCATIONS"
-    echo "\$EXCLUDE_ITYPES=$EXCLUDE_ITYPES"
+    echo "\$COMPILE_FRESH_TABLES=$COMPILE_FRESH_TABLES"
+    echo "\$RUN_TABLE_COMPILER=$RUN_TABLE_COMPILER"
     echo "\$SSH_SERVER=$SSH_SERVER"
     echo "\$SERIES_AWK=$SERIES_AWK"
     echo "\$ITEMS_AWK=$ITEMS_AWK"
@@ -143,6 +142,11 @@ collect_data()
         local src_file_age=$(date -r "$appsng_items" +%s)
         if (( src_file_age <= an_hour_ago )); then
             logit "copying data from the ILS."
+            if [ "$COMPILE_FRESH_TABLES" == true ]; then
+                if ! ssh $SSH_SERVER "$RUN_TABLE_COMPILER"; then
+                    logerr "compile requested but failed to run the table compiler on the ITS. Check $RUN_TABLE_COMPILER"
+                fi
+            fi
             if ! scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR ; then
                 logerr "scp command $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR failed!"
             fi
@@ -186,7 +190,7 @@ collect_data()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "debug,help,Locations_excluded:,test,Types_excluded:,version,VARS,xhelp" -o "dhL:tT:vVx" -a -- "$@")
+options=$(getopt -l "compile,debug,help,test,version,VARS,xhelp" -o "cdhtvVx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -195,6 +199,10 @@ eval set -- "$options"
 while true
 do
     case $1 in
+    -c|--compile)
+        [ "$DEBUG" == true ] || logit "Compiling fresh table files"
+		COMPILE_FRESH_TABLES=true
+		;;
     -d|--debug)
         [ "$DEBUG" == true ] || logit "Turning on debugging"
 		DEBUG=true
@@ -203,21 +211,11 @@ do
         usage
         exit 0
         ;;
-    -L|--Locations_excluded)
-        shift
-        EXCLUDE_LOCATIONS="$1"
-        [ "$DEBUG" == true ] && logit "Excluding items in $EXCLUDE_LOCATIONS locations."
-        ;;
     -t|--test)
         [ "$DEBUG" == true ] && logit "using test database"
         SSH_SERVER=$TEST_SERVER
 		IS_TEST=true
 		;;
-    -T|--Types_excluded)
-        shift
-        EXCLUDE_ITYPES="$1"
-        [ "$DEBUG" == true ] && logit "Excluding $EXCLUDE_ITYPES item types."
-        ;;
     -v|--version)
         echo "$0 version: $VERSION"
         exit 0
