@@ -1,5 +1,5 @@
 #!usr/bin/env awk
-
+# Version: 1.0
 ## Create sql insert statements for series data.
 BEGIN {
     FS="|";
