@@ -36,7 +36,7 @@
 ## TODO: Continue refactoring to match requirements above.
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh $0)
-VERSION="1.00.03"
+VERSION="1.00.04"
 DEBUG=false
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -106,19 +106,23 @@ compile_lastcopy_lists()
     # | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
     # |:---|---:|---:|---:|---:|---:|
     # | id | bigint | unsigned | NO | PRI | NULL | 
+    # | title_control_number | varchar(25) | YES | NULL |  # Proposed change since staff don't ref titles by cat key.
     # | title | varchar(255) | NO | NULL | 
     # | author | varchar(255) | YES | NULL | 
     # | publication_year | int | NO | NULL | 
     # | title_holds | int | NO | NULL |
     [ -s "$LASTCOPY_TITLES" ] || { logit "Creating new titles list."; ~/Unicorn/Bincustom/lastcopy.sh --CSV; }
     [ -s "$LASTCOPY_TITLES" ] || logerr "Failed to create last copy list!"
+    # The input to the next process comes from 'lastcopy.lst', and is formatted as follows.
     # CKey,NumItems,NumTHolds,NumCircable
     # 1000044|3|1|1|
-    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|1|0|0|
-    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|1|0|1|
+    # The next command adds all the information for generating title SQL statements.
+    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|1|0|0|a1000031|
+    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|1|0|1|a1000033|
     logit "compiling title information."
-    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRyS 2>/dev/null | pipe.pl -oc4,c6,exclude -P >$APPSNG_TITLES
-    # Contains information about specific items. These items have been identified as representative of a title at risk.
+    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySF 2>/dev/null | pipe.pl -oc4,c6,exclude -tc7 -P >$APPSNG_TITLES
+    # Here the items' data are collected.
+    # The table schema is as follows.
     # | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
     # |:---|---:|---:|---:|---:|---:|
     # | id | bigint | unsigned | NO | PRI | NULL | 
@@ -139,6 +143,7 @@ compile_lastcopy_lists()
     ## Lastcopy.lst contents and format.
     # CKey,NumItems,NumTHolds,NumCircable
     # 1000044|3|1|1|
+    # Will become the following.
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|20211215|20211206|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|20220302|20220302|
     logit "compiling item information."
