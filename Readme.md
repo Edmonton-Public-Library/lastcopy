@@ -66,7 +66,8 @@ This table contains information about titles that are at risk of having only las
 
 | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
 |:---|---:|---:|---:|---:|---:|
-| id | bigint | unsigned | NO | PRI | NULL | 
+| id | bigint | unsigned | NO | PRI | NULL |
+| **title_control_number** | varchar(25) | YES | NULL | | Proposed addition |
 | title | varchar(255) | NO | NULL | 
 | author | varchar(255) | YES | NULL | 
 | publication_year | int | NO | NULL | 
