@@ -1,5 +1,5 @@
 #!usr/bin/env awk
-
+# Version: 1.1
 ## Create MySQL insert statements for items.
 BEGIN {
     FS="|";
@@ -14,7 +14,7 @@ BEGIN {
     count = -1;
     # The Test ILS seems to need smaller chunks.
     max_query_lines = 1500;
-    default_date = "1900-01-01";
+    default_date = "";
 }
 
 # For any non-empty entry print the values to insert to the Items table.
