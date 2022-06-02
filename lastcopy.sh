@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.02.01"
+VERSION="1.02.02"
 TMP_DIR=/tmp
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
@@ -128,7 +128,8 @@ find_last_copies()
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
     # Example: 1005442|1|
     logit "selecting all items excluding $EXCLUDE_ITYPES"
-    selitem -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
+    # While selecting the initial cat keys I grep out temp items, that is, items with '-' in their barcodes.
+    selitem -oCB 2>/dev/null | grep -v "-" | pipe.pl -o c0 | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
     [ -s "$all_CKeyItemCount" ] || logerr "no items found??"
     ## TODO: add total circs to the list of data collected.
     # Find the count of active holds on each title.
@@ -152,7 +153,8 @@ find_last_copies()
     # 1000044|31221116612396  |INTRANSIT|1|0|
     # 1000056|31221101053291  |HOLDS|7|3|
     logit "selecting items on titles with active holds"
-    cat $merged_CKeyItemCountHoldCount | selitem -iC -oCBmS 2>/dev/null >$allItems_CKeyBCodeLocationItemCountHoldCount
+    # Here again don't pass on the temp items.
+    cat $merged_CKeyItemCountHoldCount | selitem -iC -oCBmS 2>/dev/null | pipe.pl -Gc1:"-" -P >$allItems_CKeyBCodeLocationItemCountHoldCount
     [ -s "$allItems_CKeyBCodeLocationItemCountHoldCount" ] || logerr "no items found."
     # Make a new list of items with only non-shadowed locations.
     # Method: Pipe the items and exclude hidden non-circulatable locations and save the list.
@@ -179,7 +181,7 @@ find_last_copies()
     [ "$DEBUG" == true ] && logit "merging hold and visible copy lists."
     cat $merged_CKeyItemCountHoldCount | pipe.pl -0 $visibleItems_ItemCount -M c0:c0?c1.0 -P >$all_CKeyItemCountHoldCountVisibleCopyCount
     # Find all the cat keys with 0 or 1 visible items.
-    # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than two (2) visible copies.
+    # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than $CIRC_COPIES visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
     cat $all_CKeyItemCountHoldCountVisibleCopyCount | pipe.pl -C c3:le$CIRC_COPIES -P >$LAST_COPY_LIST
     [ "$OUTPUT_CSV" == true ] && cat $LAST_COPY_LIST | pipe.pl -oc0,c1,c2,c3 -TCSV_UTF-8:'CKey,NumItems,NumTHolds,NumCircable' >${LAST_COPY_LIST}.csv
