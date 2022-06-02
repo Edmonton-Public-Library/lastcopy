@@ -38,8 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.02.02"
-TMP_DIR=/tmp
+VERSION="1.02.03"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -104,7 +103,7 @@ show_vars()
     logit "\$APP=$0"
     logit "\$VERSION=$VERSION"
     logit "\$WORKING_DIR=$WORKING_DIR"
-    logit "\$TMP_DIR=$TMP_DIR"
+    logit "\$WORKING_DIR=$WORKING_DIR"
     logit "\$LOG=$LOG"
     logit "\$ALT_LOG=$ALT_LOG"
     logit "\$LAST_COPY_LIST=$LAST_COPY_LIST"
@@ -116,13 +115,13 @@ show_vars()
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
 {
-    local all_CKeyItemCount=$TMP_DIR/${APP}_all_ckey_itemcount.lst
-    local allActiveHolds_CKeyCount=$TMP_DIR/${APP}_all_activeholds_ckey_holdcount.lst
-    local merged_CKeyItemCountHoldCount=$TMP_DIR/${APP}_merged_ckey_itemcount_holdcount.lst
-    local allItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst
-    local allVisibleItems_CKeyBCodeLocationItemCountHoldCount=$TMP_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst
-    local visibleItems_ItemCount=$TMP_DIR/${APP}_visible_items_ckey_itemcount.lst
-    local all_CKeyItemCountHoldCountVisibleCopyCount=$TMP_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst
+    local all_CKeyItemCount=$WORKING_DIR/${APP}_all_ckey_itemcount.lst
+    local allActiveHolds_CKeyCount=$WORKING_DIR/${APP}_all_activeholds_ckey_holdcount.lst
+    local merged_CKeyItemCountHoldCount=$WORKING_DIR/${APP}_merged_ckey_itemcount_holdcount.lst
+    local allItems_CKeyBCodeLocationItemCountHoldCount=$WORKING_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst
+    local allVisibleItems_CKeyBCodeLocationItemCountHoldCount=$WORKING_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst
+    local visibleItems_ItemCount=$WORKING_DIR/${APP}_visible_items_ckey_itemcount.lst
+    local all_CKeyItemCountHoldCountVisibleCopyCount=$WORKING_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst
     # Find all the ckeys for all items and make a zero hold list that matches format of the (next)
     # active holds list. This will give us a list of all last copies - with or without holds.
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
@@ -258,8 +257,6 @@ do
     esac
     shift
 done
-# If the debug is on set the temp dir to working directory to make file checks easier.
-[ "$DEBUG" == true ] && TMP_DIR=$WORKING_DIR 
 logit "== starting $APP version: $VERSION"
 [ "$SHOW_VARS" == true ] && show_vars
 find_last_copies
