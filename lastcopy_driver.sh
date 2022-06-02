@@ -37,7 +37,7 @@
 ###############################################################################
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="1.02.00"
+VERSION="1.02.01"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
@@ -140,7 +140,7 @@ collect_data()
     if [ -s "$appsng_items" ]; then
         local an_hour_ago=$(date -d 'now - 1 hours' +%s)
         local src_file_age=$(date -r "$appsng_items" +%s)
-        if (( src_file_age <= an_hour_ago )); then
+        if (( $src_file_age <= $an_hour_ago )); then
             logit "copying data from the ILS."
             if [ "$COMPILE_FRESH_TABLES" == true ]; then
                 if ! ssh $SSH_SERVER "$RUN_TABLE_COMPILER"; then
@@ -152,6 +152,10 @@ collect_data()
             fi
         else
             logit "the existing files are less than an hour old, using them."
+        fi
+    else
+        if ! scp $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR ; then
+            logerr "scp command $SSH_SERVER:$ILS_WORKING_DIR/$LASTCOPY_FILES $WORKING_DIR failed!"
         fi
     fi
     [ -s "$appsng_titles" ] || logerr "$appsng_titles are missing or empty."
