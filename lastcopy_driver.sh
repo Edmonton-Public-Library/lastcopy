@@ -37,7 +37,7 @@
 ###############################################################################
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="1.02.01"
+VERSION="1.02.02"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
@@ -180,7 +180,7 @@ collect_data()
     logit "compiling series sql statements"
     awk -f $SERIES_AWK $appsng_series >$series_sql
     ## **This one must be the first to load **.
-    logit "starting to load $appsng_titles:"
+    logit "starting to load $titles_sql:"
     $DB_CMD <$titles_sql #2>>$LOG
     logit "starting to load $items__sql:"
     $DB_CMD <$items__sql #2>>$LOG
