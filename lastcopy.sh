@@ -115,6 +115,7 @@ show_vars()
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
 {
+    ## @TODO: Remove e-resources and ILL items.
     local all_CKeyItemCount=$WORKING_DIR/${APP}_all_ckey_itemcount.lst
     local allActiveHolds_CKeyCount=$WORKING_DIR/${APP}_all_activeholds_ckey_holdcount.lst
     local merged_CKeyItemCountHoldCount=$WORKING_DIR/${APP}_merged_ckey_itemcount_holdcount.lst

@@ -171,12 +171,12 @@ collect_data()
     [ -s "$series_sql" ] && rm $series_sql
     logit "compiling titles sql statements"
     awk -f $TITLES_AWK $appsng_titles >$titles_sql
-    ## TODO: parse items into SQL statements.
+    ## Parse items into SQL statements.
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|
     logit "compiling items sql statements"
     awk -f $ITEMS_AWK $appsng_items >$items__sql
-    ## TODO: parse series into SQL statements.
+    ## Parse series into SQL statements.
     logit "compiling series sql statements"
     awk -f $SERIES_AWK $appsng_series >$series_sql
     ## **This one must be the first to load **.
