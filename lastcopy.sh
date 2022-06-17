@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.02.03"
+VERSION="1.03.00"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -48,7 +48,7 @@ NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER
 DEBUG=false
 CIRC_COPIES=1
 # Items in these locations don't count agains charges.
-EXCLUDE_ITYPES='~UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
+IGNORE_TYPES='~UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
 SHOW_VARS=false
 OUTPUT_CSV=false
 ####### Functions ########
@@ -70,6 +70,9 @@ Usage: $0 [-option]
  -d, --debug turn on debug logging, write scratch files to the 
    working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
+ -i, --ignore<TYPE_1,TYPE_2,...>: Ignore these item types.
+   The default is $IGNORE_TYPES. Do not add the '~', and separate
+   multiple values with ','.
  -l, --log=<path>: Appends logging to another log file.
  -v, --version: display application version and exit.
  -V, --VARS: Show variables used.
@@ -111,6 +114,7 @@ show_vars()
     logit "\$DEBUG=$DEBUG"
     logit "\$CIRC_COPIES=$CIRC_COPIES"
     logit "\$OUTPUT_CSV=$OUTPUT_CSV"
+    logit "\$IGNORE_TYPES=$IGNORE_TYPES"
 }
 # Finds titles with last, or near to last copies in circulation.
 find_last_copies()
@@ -127,9 +131,9 @@ find_last_copies()
     # active holds list. This will give us a list of all last copies - with or without holds.
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
     # Example: 1005442|1|
-    logit "selecting all items excluding $EXCLUDE_ITYPES"
+    logit "selecting all items excluding $IGNORE_TYPES"
     # While selecting the initial cat keys I grep out temp items, that is, items with '-' in their barcodes.
-    selitem -oCB 2>/dev/null | grep -v "-" | pipe.pl -o c0 | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
+    selitem -t"~$IGNORE_TYPES" -oCB 2>/dev/null | grep -v "-" | pipe.pl -o c0 | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
     [ -s "$all_CKeyItemCount" ] || logerr "no items found??"
     ## TODO: add total circs to the list of data collected.
     # Find the count of active holds on each title.
@@ -154,7 +158,7 @@ find_last_copies()
     # 1000056|31221101053291  |HOLDS|7|3|
     logit "selecting items on titles with active holds"
     # Here again don't pass on the temp items.
-    cat $merged_CKeyItemCountHoldCount | selitem -iC -oCBmS 2>/dev/null | pipe.pl -Gc1:"-" -P >$allItems_CKeyBCodeLocationItemCountHoldCount
+    cat $merged_CKeyItemCountHoldCount | selitem -iC -t"~$IGNORE_TYPES" -oCBmS 2>/dev/null | pipe.pl -Gc1:"-" -P >$allItems_CKeyBCodeLocationItemCountHoldCount
     [ -s "$allItems_CKeyBCodeLocationItemCountHoldCount" ] || logerr "no items found."
     # Make a new list of items with only non-shadowed locations.
     # Method: Pipe the items and exclude hidden non-circulatable locations and save the list.
@@ -203,7 +207,7 @@ find_last_copies()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "circ_copies:,CSV,debug,help,log:,version,VARS,working_dir:,xhelp" -o "c:Cdhl:vVw:x" -a -- "$@")
+options=$(getopt -l "circ_copies:,CSV,debug,help,ignore:,log:,version,VARS,working_dir:,xhelp" -o "c:Cdhi:l:vVw:x" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -227,6 +231,11 @@ do
     -h|--help)
         usage
         exit 0
+        ;;
+    -i|--ignore)
+        shift
+        IGNORE_TYPES="$1"
+        logit "adding rule to ignore $IGNORE_TYPES"
         ;;
     -l|--log)
         shift

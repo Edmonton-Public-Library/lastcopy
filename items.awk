@@ -1,15 +1,15 @@
 #!usr/bin/env awk
-# Version: 1.1.01
+# Version: 1.2.0 - Added call_number field.
 ## Create MySQL insert statements for items.
 BEGIN {
     FS="|";
     # id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged
-    # 31221069638372|451033|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
-    # 31221070218743|498461|20|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
-    # 31221073208600|498521|0|DISCARD|JDVD21|0|2017-04-09|2017-04-03|
+    # 31221069638372|451033|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|Easy readers A PBK|
+    # 31221070218743|498461|20|DISCARD|JDVD21|1|2017-04-09|2017-04-03|Easy readers A PBK|
+    # 31221073208600|498521|0|DISCARD|JDVD21|0|2017-04-09|2017-04-03|Easy readers A PBK|
     # Added an empty field for 'notes' because the database doesn't allow empty values (yet)
 
-    insertStatement = "REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged) VALUES ";
+    insertStatement = "REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, call_number) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
@@ -40,8 +40,9 @@ BEGIN {
         last_charged = "'"$8"'";
     }
     # id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged
-    # 31221073208600|498521|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|
-    printf "(%d,%d,%d,'%s','%s',%d,%s,%s)",$1,$2,$3,$4,$5,$6,last_active,last_charged;
+    # 31221073208600|498521|7|DISCARD|JDVD21|1|2017-04-09|2017-04-03|Easy readers A PBK|
+    call_num = substr($9, 1, 25);
+    printf "(%d,%d,%d,'%s','%s',%d,%s,%s,'%s')",$1,$2,$3,$4,$5,$6,last_active,last_charged,call_num;
     if (count == -1){
         printf ",\n";
     }

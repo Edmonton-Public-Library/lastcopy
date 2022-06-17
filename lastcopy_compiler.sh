@@ -32,11 +32,10 @@
 #######################################################################
 # ***           Edit these to suit your environment               *** #
 . /software/EDPL/Unicorn/EPLwork/cronjobscripts/setscriptenvironment.sh
-###############################################################################
-## TODO: Continue refactoring to match requirements above.
+#######################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh $0)
-VERSION="1.00.04"
+VERSION="1.01.01"
 DEBUG=false
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -103,14 +102,6 @@ show_vars()
 
 compile_lastcopy_lists()
 {
-    # | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
-    # |:---|---:|---:|---:|---:|---:|
-    # | id | bigint | unsigned | NO | PRI | NULL | 
-    # | title_control_number | varchar(25) | YES | NULL |  # Proposed change since staff don't ref titles by cat key.
-    # | title | varchar(255) | NO | NULL | 
-    # | author | varchar(255) | YES | NULL | 
-    # | publication_year | int | NO | NULL | 
-    # | title_holds | int | NO | NULL |
     [ -s "$LASTCOPY_TITLES" ] || { logit "Creating new titles list."; ~/Unicorn/Bincustom/lastcopy.sh --CSV; }
     [ -s "$LASTCOPY_TITLES" ] || logerr "Failed to create last copy list!"
     # The input to the next process comes from 'lastcopy.lst', and is formatted as follows.
@@ -119,27 +110,24 @@ compile_lastcopy_lists()
     # The next command adds all the information for generating title SQL statements.
     # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|1|0|0|a1000031|
     # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|1|0|1|a1000033|
-    logit "compiling title information."
-    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySF 2>/dev/null | pipe.pl -oc4,c6,exclude -tc7 -P >$APPSNG_TITLES
+    # Collect all the titles, adding NLC as placeholders for item information. Later 
+    # append the last copy item information, then dedup the list. Dedup in pipe.pl
+    # naturally saves the last duplicate which will be the title with last copy information
+    # or NLC if the title doesn't have last copies.
+    logit "compiling all titles."
+    tmpfile=$(mktemp $WORKING_DIR/${APP}-script.XXXXXX)
+    # Add a '-1' to indicate that number of title holds is not collected for titles that are not last copy titles.
+    # Any other integer is mis-leading.
+    selcatalog -oCtRyF 2>/dev/null | pipe.pl -m c4:"-1\|#" -P >${tmpfile}
+    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|NLC|epl000001934  |
+    logit "appending last-copy title records."
+    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySF 2>/dev/null | pipe.pl -oc4,c6,exclude -tc7 -P >>${tmpfile}
+    logit "de-duplicating last-copy titles,"
+    # de-duplicate last-copy titles, leaves a unique list of last copy titles and non-lastcopy titles.
+    cat ${tmpfile} | pipe.pl -dc0 >$APPSNG_TITLES
+    # Save for checking.
+    [ "$DEBUG" == false ] && rm ${tmpfile}
     # Here the items' data are collected.
-    # The table schema is as follows.
-    # | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
-    # |:---|---:|---:|---:|---:|---:|
-    # | id | bigint | unsigned | NO | PRI | NULL | 
-    # | last_copy_title_id | bigint | unsigned | NO | MUL | NULL |  
-    # | checkouts | int | NO | NULL | 
-    # | current_location | varchar(255) | NO | NULL | 
-    # | item_type | varchar(25) | NO | NULL | 
-    # | copy_holds | int | NO | NULL | 
-    # | last_active | date | NO | NULL | 
-    # | last_charged | date | NO | NULL | 
-    ## These are populated by staff in the application.
-    # | last_copy_item_status_id | bigint | unsigned | YES | MUL | NULL | 
-    # | last_copy_item_complete_status_id | bigint | unsigned | YES | MUL | NULL | 
-    # | notes | varchar(255) | NO | NULL | 
-    # | is_reviewed | timestamp | NO | NULL | 
-    # | snooze_until | timestamp | YES | NULL | 
-    # | updated_by_user_id | char(36) | YES | MUL | NULL |
     ## Lastcopy.lst contents and format.
     # CKey,NumItems,NumTHolds,NumCircable
     # 1000044|3|1|1|
@@ -147,17 +135,11 @@ compile_lastcopy_lists()
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|20211215|20211206|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|20220302|20220302|
     logit "compiling item information."
-    cat $LASTCOPY_TITLES | selitem -iC -oBCdmthan 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >$APPSNG_ITEMS
-    # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|
-    # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|
+    # TODO: add Call number (shelving key) DONE but needs testing.
+    cat $LASTCOPY_TITLES | selitem -iC -oNBCdmthan 2>/dev/null | selcallnum -iN -oSD 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >$APPSNG_ITEMS
+    # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|Easy readers A PBK|
+    # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|Easy readers A PBK|
     ## Series information.
-    # | **Field** | **Type** | **Null** | **Key** | **Default** | **Extra** |
-    # |:---|---:|---:|---:|---:|---:|
-    # | id | bigint | unsigned | NO | PRI | NULL | auto_increment | CKey
-    # | name | varchar(255) | NO | NULL | Series
-    # | description | varchar(255) | NO | NULL | 
-    # | updated_by_user_id | char(36) | YES | MUL | NULL | 
-    # | deleted_at | timestamp | YES | NULL |
     [ -s "$LASTCOPY_SERIES" ] || { logit "Creating new series list. This can take some time."; ~/Unicorn/Bincustom/series.sh --CSV; }
     [ -s "$LASTCOPY_SERIES" ] || logerr "Failed to create series list!"
     # CKey,Series

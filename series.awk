@@ -1,5 +1,6 @@
 #!usr/bin/env awk
-# Version: 1.0
+# Version: 2.0
+# Version 2 has new table name last_copy_catkey_series_names, with columns last_copy_title_id, and series_name.
 ## Create sql insert statements for series data.
 BEGIN {
     FS="|";
@@ -7,7 +8,7 @@ BEGIN {
     # 691|North of 52 Collection|
     # 715|North of 52 Collection|
     # 723|Heritage Collection|
-    insertStatement = "REPLACE INTO last_copy_series (id, name) VALUES ";
+    insertStatement = "REPLACE INTO last_copy_catkey_series_names (last_copy_title_id, series_name) VALUES ";
     print insertStatement;
     count = -1;
     max_query_lines = 1500;
