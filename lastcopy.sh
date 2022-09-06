@@ -72,8 +72,9 @@ Usage: $0 [-option]
    working directory (see -w), and do not remove scratch files.
  -h, --help: display usage message and exit.
  -i, --ignore<TYPE_1,TYPE_2,...>: Ignore these item types.
-   The default is $IGNORE_TYPES. Do not add the '~', and separate
-   multiple values with ','.
+   Default:
+   $IGNORE_TYPES
+   Do not add the '~', and separate multiple values with ','.
  -l, --log=<path>: Appends logging to another log file.
  -v, --version: display application version and exit.
  -V, --VARS: Show variables used.
@@ -254,6 +255,7 @@ do
         shift
         WORKING_DIR=$1
         # Update the location of the last copy list since working dir has changed.
+        LOG=$WORKING_DIR/${APP}.log
         LAST_COPY_LIST=$WORKING_DIR/${APP}.lst
         logit "setting working directory to $WORKING_DIR"
         ;;

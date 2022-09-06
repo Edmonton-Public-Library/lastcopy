@@ -35,7 +35,7 @@
 #######################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh $0)
-VERSION="1.01.01"
+VERSION="1.01.03"
 DEBUG=false
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -102,6 +102,8 @@ show_vars()
 
 compile_lastcopy_lists()
 {
+    # If there is already a list keep it. It takes a long time to generate.
+    # The lastcopy.sh script is scheduled to run before this script.
     [ -s "$LASTCOPY_TITLES" ] || { logit "Creating new titles list."; ~/Unicorn/Bincustom/lastcopy.sh --CSV; }
     [ -s "$LASTCOPY_TITLES" ] || logerr "Failed to create last copy list!"
     # The input to the next process comes from 'lastcopy.lst', and is formatted as follows.
