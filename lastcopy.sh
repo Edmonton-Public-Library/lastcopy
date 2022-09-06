@@ -38,7 +38,7 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh $0)
-VERSION="1.03.00"
+VERSION="1.03.01"
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -48,7 +48,8 @@ NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER
 DEBUG=false
 CIRC_COPIES=1
 # Items in these locations don't count agains charges.
-IGNORE_TYPES='~UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
+# Note that DO NOT include a tilde for negation, that's done later during selection.
+IGNORE_TYPES='UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
 SHOW_VARS=false
 OUTPUT_CSV=false
 ####### Functions ########
