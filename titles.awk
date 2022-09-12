@@ -1,5 +1,5 @@
 #!usr/bin/env awk
-# Version: 1.2 - Added error correction for empty title, author, and holds less than 0.
+# Version: 1.3 - Remove 'ILL - ' titles.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
@@ -23,7 +23,7 @@ BEGIN {
     title = $2;
     author = $3;
     # Some titles don't have titles (??). That should be the minimal criteria for a title!
-    if (title != "" && author != "" && ! match(title, /(\[electronic resource\])/)) {
+    if (title != "" && author != "" && ! match(title, /(\[electronic resource\])/) && ! match(title, /(ILL - )/)) {
         if (count == max_query_lines) {
             count = 0;
             printf ";\nCOMMIT;\n" insertStatement "\n";
