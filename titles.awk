@@ -23,7 +23,7 @@ BEGIN {
     title = $2;
     author = $3;
     # Some titles don't have titles (??). That should be the minimal criteria for a title!
-    if (title != "" && author != "" && ! match(title, /(\[electronic resource\])/) && ! match(title, /(ILL - )/)) {
+    if (title != "" && author != "" && ! match(title, /(\[electronic resource\])/) && ! match(title, /(ILL ?- ?)/)) {
         if (count == max_query_lines) {
             count = 0;
             printf ";\nCOMMIT;\n" insertStatement "\n";
