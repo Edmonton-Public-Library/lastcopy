@@ -30,7 +30,7 @@
 APP=$(basename -s .sh $0)
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
-VERSION="1.00.01"
+VERSION="1.01.00"
 DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
 DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
 DEBUG=false
@@ -43,6 +43,7 @@ ITEMS_SQL=$WORKING_DIR/items.sql
 TITLES_SQL=$WORKING_DIR/titles.sql
 # List of all tables to truncate DO NOT change order or you will break referential integrity.
 ALL_TABLES=("last_copy_series_titles" "last_copy_catkey_series_names" "last_copy_series" "last_copy_items" "last_copy_titles") 
+TRUNCATE=false
 ####### Functions ########
 # Display usage message.
 # param:  none
@@ -58,6 +59,8 @@ Usage: $0 [-option]
  -d, --debug: Turn on debugging messaging. Won't truncate tables
               but will report the command that would have been run.
  -h, --help: display usage message and exit.
+ -T, --Truncate: Truncate data in existing tables. Warning this could
+    take a loooong time.
  -t, --test: Perform on test database AKA staging.
  -v, --version: display application version and exit.
  -x, --xhelp: display usage message and exit.
@@ -89,7 +92,7 @@ logerr()
 # -l is for long options with double dash like --version
 # the comma separates different long options
 # -a is for long options with single dash like -version
-options=$(getopt -l "debug,help,test,version,xhelp" -o "dhtvx" -a -- "$@")
+options=$(getopt -l "debug,help,Truncate,test,version,xhelp" -o "dhTtvx" -a -- "$@")
 if [ $? != 0 ] ; then echo "Failed to parse options...exiting." >&2 ; exit 1 ; fi
 # set --:
 # If no arguments follow this option, then the positional parameters are unset. Otherwise, the positional parameters
@@ -106,6 +109,10 @@ do
         usage
         exit 0
         ;;
+    -T|--Truncate)
+        [ "$DEBUG" == true ] && logit "truncating tables in database"
+		TRUNCATE=true
+		;;
     -t|--test)
         [ "$DEBUG" == true ] && logit "using test database"
 		IS_TEST=true
@@ -157,10 +164,12 @@ if [ "$DEBUG" == true ]; then
     logit "DEBUG: loading '$ITEMS_SQL'"
     logit "DEBUG: loading '$SERIES_SQL'"
 else
-    for table_name in ${ALL_TABLES[@]}; do
-        logit "truncating '$table_name'"
-        $DB_CMD -e "TRUNCATE TABLE $table_name;" 2>>$ALT_LOG
-    done
+    if [ "$TRUNCATE" == true ]; then
+        for table_name in ${ALL_TABLES[@]}; do
+            logit "truncating '$table_name'"
+            $DB_CMD -e "TRUNCATE TABLE $table_name;" 2>>$ALT_LOG
+        done
+    fi
     # Now add new data
     logit "loading '$TITLES_SQL'"
     $DB_CMD <$TITLES_SQL
