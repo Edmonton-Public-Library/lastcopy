@@ -1,14 +1,13 @@
 #!usr/bin/env awk
-# Version: 1.3 - Remove 'ILL - ' titles.
+# Version: 2.0 - Remove 'ILL - ' titles.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
-    # 1000009|Victims [sound recording] : [an Alex Delaware novel] / Jonathan Kellerman|Kellerman, Jonathan|2012|0|a1000077|
-    # 1000012|Story of the Titanic / illustration, Steve Noon ; consultant, Eric Kentley|Noon, Steve|2012|0|a1000033|
-    # 1000028|The life and times of Benjamin Franklin [sound recording] / H.W. Brands|Brands, H. W.|2003|0|a1000099|
-    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|0|a1000088|
-    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|0|a1000034|
-    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number) VALUES ";
+    # 1000009|Victims [sound recording] : [an Alex Delaware novel] / Jonathan Kellerman|Kellerman, Jonathan|2012|-1|a1000009|-|CD KEL|
+    # 1000028|The life and times of Benjamin Franklin [sound recording] / H.W. Brands|Brands, H. W.|2003|-1|a1000028|CD 973.3092 FRA BRA|-|
+    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|-1|a1000031|-|Spanish LAW|
+    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|-1|a1000033|-|Spanish LUC|
+    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
@@ -44,12 +43,18 @@ BEGIN {
         if (title_holds < 0) {
             title_holds = 0;
         }
+        # Call number has been added ($7, or $8) so process it here
+        # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|-1|a1000031|-|Spanish LAW|
+        call_num = $7;
+        if (match(call_num, /(-)/)) {
+            call_num = $8;
+        }
         # Some items don't have publication years so output a null value.
         publication_year = $4;
         if (publication_year <= 0) {
-            printf "(%d, '%s', '%s', NULL, %d, '%s')",$1,title,author,title_holds,$6;
+            printf "(%d, '%s', '%s', NULL, %d, '%s', '%s')",$1,title,author,title_holds,$6,call_num;
         } else {
-            printf "(%d, '%s', '%s', %d, %d, '%s')",$1,title,author,publication_year,title_holds,$6;
+            printf "(%d, '%s', '%s', %d, %d, '%s', '%s')",$1,title,author,publication_year,title_holds,$6,call_num;
         }
         # Only update the counts that are actually intended to be loaded.
         if (count == -1){
