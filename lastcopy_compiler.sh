@@ -35,7 +35,7 @@
 #######################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh $0)
-VERSION="1.01.04"
+VERSION="1.01.05"
 DEBUG=false
 LOG=$WORKING_DIR/${APP}.log
 ALT_LOG=/dev/null
@@ -120,16 +120,12 @@ compile_lastcopy_lists()
     tmpfile=$(mktemp $WORKING_DIR/${APP}-script.XXXXXX)
     # Add a '-1' to indicate that number of title holds is not collected for titles that are not last copy titles.
     # Any other integer is mis-leading.
-    selcatalog -oCtRyF 2>/dev/null | pipe.pl -m c4:"-1\|#" -P >${tmpfile}
-    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|-1|epl000001934  |
-    logit "appending last-copy title records."
-    ##### Before
-    # Selcatalog without trim or removal of c4 and c6:
-    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|-1|epl000001934  |epl000001934  |
-    # cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySF 2>/dev/null | pipe.pl -oc4,c6,exclude -tc7 -P >>${tmpfile}
-    ## proposed revision: include 092, and 099 call number and remove extra TCN. 
-    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySe -e092,099 2>/dev/null | pipe.pl -oc4,c5,c6,exclude | pipe.pl -tc5 -P >>${tmpfile}
+    # selcatalog -oCtRyF 2>/dev/null | pipe.pl -m c4:"-1\|#" -P >${tmpfile}
+    selcatalog -oCtRyFe -e092,099 2>/dev/null | pipe.pl -m c4:"-1\|#" -tc4 -P >${tmpfile}
     # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|-1|epl000001934|-|E MAR|
+    logit "appending last-copy title records."
+    cat $LASTCOPY_TITLES | selcatalog -iC -oCtRySFe -e092,099 2>/dev/null | pipe.pl -oc4,c6,exclude -tc7 -P >>${tmpfile}
+    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
     logit "de-duplicating last-copy titles,"
     # de-duplicate last-copy titles, leaves a unique list of last copy titles and non-lastcopy titles.
     cat ${tmpfile} | pipe.pl -dc0 >$APPSNG_TITLES

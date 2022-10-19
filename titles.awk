@@ -1,12 +1,9 @@
 #!usr/bin/env awk
-# Version: 2.0 - Remove 'ILL - ' titles.
+# Version: 2.01 - Add call number logic.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
-    # 1000009|Victims [sound recording] : [an Alex Delaware novel] / Jonathan Kellerman|Kellerman, Jonathan|2012|-1|a1000009|-|CD KEL|
-    # 1000028|The life and times of Benjamin Franklin [sound recording] / H.W. Brands|Brands, H. W.|2003|-1|a1000028|CD 973.3092 FRA BRA|-|
-    # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|-1|a1000031|-|Spanish LAW|
-    # 1000033|Noche de amor en Río / Jennie Lucas|Lucas, Jennie|2011|-1|a1000033|-|Spanish LUC|
+    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
     insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number) VALUES ";
     print insertStatement;
     count = -1;
@@ -44,9 +41,9 @@ BEGIN {
             title_holds = 0;
         }
         # Call number has been added ($7, or $8) so process it here
-        # 1000031|Un hombre arrogante / Kim Lawrence|Lawrence, Kim|2011|-1|a1000031|-|Spanish LAW|
+        # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
         call_num = $7;
-        if (match(call_num, /(-)/)) {
+        if (match(call_num, /^(-)$/)) {
             call_num = $8;
         }
         # Some items don't have publication years so output a null value.
