@@ -1,5 +1,5 @@
 #!usr/bin/env awk
-# Version: 2.01 - Add call number logic.
+# Version: 2.02 - Some titles don't have call numbers, so if they are missing use null instead.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
@@ -46,13 +46,20 @@ BEGIN {
         if (match(call_num, /^(-)$/)) {
             call_num = $8;
         }
-        # Some items don't have publication years so output a null value.
-        publication_year = $4;
-        if (publication_year <= 0) {
-            printf "(%d, '%s', '%s', NULL, %d, '%s', '%s')",$1,title,author,title_holds,$6,call_num;
+        if (match(call_num, /^(-)$/)) {
+            call_num = "NULL";
         } else {
-            printf "(%d, '%s', '%s', %d, %d, '%s', '%s')",$1,title,author,publication_year,title_holds,$6,call_num;
+            call_num = "'"call_num"'";
         }
+        publication_year = $4;
+        # Some items don't have publication years so output a null value.
+        if (publication_year <= 0) {
+            publication_year = "NULL";
+        }
+        # The output string _may_ have some NULL values which are not quoted so build the string piece by piece
+        my_query = "("$1", '"title"', '"author"', "publication_year", "title_holds", '"$6"', "call_num")";
+        # Stop extra new line using printf.
+        printf "%s",my_query;
         # Only update the counts that are actually intended to be loaded.
         if (count == -1){
             printf ",\n";
