@@ -33,18 +33,18 @@ PRODUCTION_ILS=edpl.sirsidynix.net
 TEST_ILS=edpltest.sirsidynix.net
 USER=sirsi
 SERVER=ils@epl-ils.epl.ca
-# REMOTE=~/Unicorn/EPLwork/anisbet/Discards/Test
-REMOTE=/software/EDPL/Unicorn/Bincustom
+# REMOTE_BIN_CUSTOM=~/Unicorn/EPLwork/anisbet/Discards/Test
+REMOTE_BIN_CUSTOM=/software/EDPL/Unicorn/Bincustom
 APP_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LOCAL=~/projects/lastcopy
 APPS=lastcopy.sh grubby.sh series.sh
 DRIVER=lastcopy_driver.sh items.awk titles.awk series.awk Readme.md rebuild_lastcopy_db.sh
 
 test: 
-	scp ${APPS} ${USER}@${TEST_ILS}:${REMOTE}
+	scp ${APPS} ${USER}@${TEST_ILS}:${REMOTE_BIN_CUSTOM}
 	scp Readme.md lastcopy_compiler.sh ${USER}@${TEST_ILS}:${APP_DIR}
 	
 production: 
-	scp ${APPS} ${USER}@${PRODUCTION_ILS}:${REMOTE}
+	scp ${APPS} ${USER}@${PRODUCTION_ILS}:${REMOTE_BIN_CUSTOM}
 	scp Readme.md lastcopy_compiler.sh ${USER}@${PRODUCTION_ILS}:${APP_DIR}
 	scp ${DRIVER} ils@epl-ils.epl.ca:/home/ils/last_copy/bin

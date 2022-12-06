@@ -72,6 +72,7 @@ This table contains information about titles that are at risk of having only las
 | author | varchar(255) | YES | NULL | 
 | publication_year | int | NO | NULL | 
 | title_holds | int | NO | NULL |
+| is_fiction | varchar | NO | NULL |
 
 ## Table: last_copy_items
 Contains information about specific items. These items have been identified as representative of a title at risk.
@@ -158,7 +159,4 @@ This product is under version control using Git.
 
 # Dependencies:
 * [pipe.pl](https://github.com/anisbet/pipe)
-
-# Known Issues:
-None
 

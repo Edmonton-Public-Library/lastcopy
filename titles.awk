@@ -1,10 +1,14 @@
 #!usr/bin/env awk
-# Version: 2.02 - Some titles don't have call numbers, so if they are missing use null instead.
+# Version: 2.03 - Some titles don't have call numbers, so if they are missing use null instead.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
+    # Version 2.02
     # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
-    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number) VALUES ";
+    # Version 2.03
+    # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|n|
+    # @TODO: The column for fiction is TO BE DETERMINED!!! Change before deploying.
+    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number, is_fiction) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
@@ -43,8 +47,17 @@ BEGIN {
         # Call number has been added ($7, or $8) so process it here
         # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
         call_num = $7;
+        fiction = 0;
         if (match(call_num, /^(-)$/)) {
             call_num = $8;
+            # The 'n' or 'y' for non fiction or fiction is in column $9 and converted to an integer of 0 or 1.
+            if ($9 == "y") {
+                fiction = 1;
+            }
+        } else {
+            if ($8 == "y") {
+                fiction = 1;
+            }
         }
         if (match(call_num, /^(-)$/)) {
             call_num = "NULL";
@@ -56,8 +69,10 @@ BEGIN {
         if (publication_year <= 0) {
             publication_year = "NULL";
         }
+        
+        
         # The output string _may_ have some NULL values which are not quoted so build the string piece by piece
-        my_query = "("$1", '"title"', '"author"', "publication_year", "title_holds", '"$6"', "call_num")";
+        my_query = "("$1", '"title"', '"author"', "publication_year", "title_holds", '"$6"', "call_num", "fiction")";
         # Stop extra new line using printf.
         printf "%s",my_query;
         # Only update the counts that are actually intended to be loaded.
