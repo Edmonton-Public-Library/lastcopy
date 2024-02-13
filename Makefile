@@ -26,13 +26,13 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301, USA.
 #
-#      0.0 - Dev.
+#      1.0 - Updated to run from epl-ils.epl.ca
 ###############################################################################
 # Change comment below for appropriate server.
 PRODUCTION_ILS=edpl.sirsidynix.net
 TEST_ILS=edpltest.sirsidynix.net
 USER=sirsi
-SERVER=ils@epl-ils.epl.ca
+
 # REMOTE_BIN_CUSTOM=~/Unicorn/EPLwork/anisbet/Discards/Test
 REMOTE_BIN_CUSTOM=/software/EDPL/Unicorn/Bincustom
 APP_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
@@ -47,4 +47,4 @@ test:
 production: 
 	scp ${APPS} ${USER}@${PRODUCTION_ILS}:${REMOTE_BIN_CUSTOM}
 	scp Readme.md lastcopy_compiler.sh ${USER}@${PRODUCTION_ILS}:${APP_DIR}
-	scp ${DRIVER} ils@epl-ils.epl.ca:/home/ils/last_copy/bin
+	scp ${DRIVER} /home/ils/last_copy/bin
