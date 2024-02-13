@@ -1,4 +1,10 @@
 # lastcopy Readme
+## TODO
+* Add usr_cat2
+* Add home location.
+* On-order items count as one available copy.
+* Titles with multiple call numbers should be included if the title as a whole, has less than 2 active copies.
+
 ## 2021-11-22
 Turns out last copy is too late. By the time we are down to the last copy, staff may have deleted the holds, and the discard process will happily purge the record, and the title in the process.
 
@@ -160,3 +166,6 @@ This product is under version control using Git.
 # Dependencies:
 * [pipe.pl](https://github.com/anisbet/pipe)
 
+# Issues
+* Multiple items show as last copy, that is, two discarded items on a title show as a last copy rather than strictly one last copy staff want just last copies.
+* Some titles with multiple available copies occasionally show up in database (31221317302276 is an example)
