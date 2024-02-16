@@ -3,7 +3,7 @@
 #
 # Bash shell script for project lastcopy
 # 
-#    Copyright (C) 2022  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2022 - 2024  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -37,12 +37,18 @@
 # ***           Edit these to suit your environment               *** #
 . ~/.bashrc
 #######################################################################
-APP=$(basename -s .sh $0)
-VERSION="1.03.01"
-WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
-LOG=$WORKING_DIR/${APP}.log
+APP=$(basename -s .sh "$0")
+# This version includes testing code clean up for modern bash syntax.
+VERSION="1.03.02"
+HOSTNAME=$(hostname)
+if [ "$HOSTNAME" == "ubuntu" ]; then
+    WORKING_DIR="."
+else
+    WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
+fi
+LOG="$WORKING_DIR/${APP}.log"
 ALT_LOG=/dev/null
-LAST_COPY_LIST=$WORKING_DIR/${APP}.lst
+LAST_COPY_LIST="$WORKING_DIR/${APP}.lst"
 # Used as a regex with pipe.pl
 NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|ON-ORDER|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL'
 DEBUG=false
@@ -91,15 +97,17 @@ EOFU!
 logit()
 {
     local message="$1"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] $message" | tee -a "$LOG" -a "$ALT_LOG"
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] **error: $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] **error: $message" | tee -a "$LOG" -a "$ALT_LOG"
     exit 1
 }
 # Displays variables.
@@ -122,27 +130,27 @@ show_vars()
 find_last_copies()
 {
     ## @TODO: Remove e-resources and ILL items.
-    local all_CKeyItemCount=$WORKING_DIR/${APP}_all_ckey_itemcount.lst
-    local allActiveHolds_CKeyCount=$WORKING_DIR/${APP}_all_activeholds_ckey_holdcount.lst
-    local merged_CKeyItemCountHoldCount=$WORKING_DIR/${APP}_merged_ckey_itemcount_holdcount.lst
-    local allItems_CKeyBCodeLocationItemCountHoldCount=$WORKING_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst
-    local allVisibleItems_CKeyBCodeLocationItemCountHoldCount=$WORKING_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst
-    local visibleItems_ItemCount=$WORKING_DIR/${APP}_visible_items_ckey_itemcount.lst
-    local all_CKeyItemCountHoldCountVisibleCopyCount=$WORKING_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst
+    local all_CKeyItemCount="$WORKING_DIR/${APP}_all_ckey_itemcount.lst"
+    local allActiveHolds_CKeyCount="$WORKING_DIR/${APP}_all_activeholds_ckey_holdcount.lst"
+    local merged_CKeyItemCountHoldCount="$WORKING_DIR/${APP}_merged_ckey_itemcount_holdcount.lst"
+    local allItems_CKeyBCodeLocationItemCountHoldCount="$WORKING_DIR/${APP}_all_items_ckey_bcode_location_itemcount_holdcount.lst"
+    local allVisibleItems_CKeyBCodeLocationItemCountHoldCount="$WORKING_DIR/${APP}_all_visible_items_ckey_bcode_location_itemcount_holdcount.lst"
+    local visibleItems_ItemCount="$WORKING_DIR/${APP}_visible_items_ckey_itemcount.lst"
+    local all_CKeyItemCountHoldCountVisibleCopyCount="$WORKING_DIR/${APP}_all_ckey_itemcount_holdcount_visiblecopycount.lst"
     # Find all the ckeys for all items and make a zero hold list that matches format of the (next)
     # active holds list. This will give us a list of all last copies - with or without holds.
     # Method: select items not of the 'exclude' type, add total ckeys reversing order do ckey comes first.
     # Example: 1005442|1|
     logit "selecting all items excluding $IGNORE_TYPES"
     # While selecting the initial cat keys I grep out temp items, that is, items with '-' in their barcodes.
-    selitem -t"~$IGNORE_TYPES" -oCB 2>/dev/null | grep -v "-" | pipe.pl -o c0 | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$all_CKeyItemCount
+    selitem -t"~$IGNORE_TYPES" -oCB 2>/dev/null | grep -v "-" | pipe.pl -o c0 | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >"$all_CKeyItemCount"
     [ -s "$all_CKeyItemCount" ] || logerr "no items found??"
     ## TODO: add total circs to the list of data collected.
     # Find the count of active holds on each title.
     # Method: Select all the active holds, output their cat keys, dedup outputting the count and put the count on the end of each line.
     # Example: 1012345|5
     logit "selecting active holds"
-    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >$allActiveHolds_CKeyCount
+    selhold -jACTIVE -oC 2>/dev/null | pipe.pl -dc0 -A -P | pipe.pl -o reverse -P >"$allActiveHolds_CKeyCount"
     [ -s "$allActiveHolds_CKeyCount" ] || logerr "no active holds found."
     # Take the list of all ckeys with counts but no holds, and merge the list of all ckeys with holds.
     # Method: in a list of all ckeys, and ckeys with holds, if the ckeys match append the number of holds 
@@ -151,7 +159,7 @@ find_last_copies()
     # 1000045|2|1|
     # 1000056|7|3|
     logit "merging ckeys with item counts with ckeys with active hold counts"
-    cat $all_CKeyItemCount | pipe.pl -0 $allActiveHolds_CKeyCount -M c0:c0?c1.0 -P >$merged_CKeyItemCountHoldCount
+    pipe.pl -0 "$allActiveHolds_CKeyCount" -M c0:c0?c1.0 -P <"$all_CKeyItemCount" >"$merged_CKeyItemCountHoldCount"
     # Given the list of cat keys with holds, find the locations of the items.
     # Method: Pipe cat keys into selitem outputting the cat key (barcode used for checking only) and location.
     # Example: 
@@ -160,7 +168,7 @@ find_last_copies()
     # 1000056|31221101053291  |HOLDS|7|3|
     logit "selecting items on titles with active holds"
     # Here again don't pass on the temp items.
-    cat $merged_CKeyItemCountHoldCount | selitem -iC -t"~$IGNORE_TYPES" -oCBmS 2>/dev/null | pipe.pl -Gc1:"-" -P >$allItems_CKeyBCodeLocationItemCountHoldCount
+    selitem -iC -t"~$IGNORE_TYPES" -oCBmS <"$merged_CKeyItemCountHoldCount" 2>/dev/null | pipe.pl -Gc1:"-" -P >"$allItems_CKeyBCodeLocationItemCountHoldCount"
     [ -s "$allItems_CKeyBCodeLocationItemCountHoldCount" ] || logerr "no items found."
     # Make a new list of items with only non-shadowed locations.
     # Method: Pipe the items and exclude hidden non-circulatable locations and save the list.
@@ -168,7 +176,8 @@ find_last_copies()
     # 1000044|31221116612396  |INTRANSIT|
     # 1000056|31221101053291  |HOLDS|
     [ "$DEBUG" == true ] && logit "removing items with non-circ locations."
-    cat $allItems_CKeyBCodeLocationItemCountHoldCount | pipe.pl -Gc2:"($NON_CIRC_LOCATIONS)" >$allVisibleItems_CKeyBCodeLocationItemCountHoldCount
+    # Exclude items from non-circ locations.
+    pipe.pl -Gc2:"($NON_CIRC_LOCATIONS)" <"$allItems_CKeyBCodeLocationItemCountHoldCount" >"$allVisibleItems_CKeyBCodeLocationItemCountHoldCount"
     [ -s "$allVisibleItems_CKeyBCodeLocationItemCountHoldCount" ] || logit "no visible items found."
     # Find all the cat ckeys and a count of circulatable items.
     # Mehod: De-duplicate all circulateable cat keys and add the count of duplicates to the end of each line.
@@ -177,7 +186,7 @@ find_last_copies()
     # 1000056|1
     # 1000084|3
     [ "$DEBUG" == true ] && logit "computing visible copy count for titles."
-    cat $allVisibleItems_CKeyBCodeLocationItemCountHoldCount | pipe.pl -dc0 -A -P | pipe.pl -o c1,c0 >$visibleItems_ItemCount
+    pipe.pl -dc0 -A -P <"$allVisibleItems_CKeyBCodeLocationItemCountHoldCount" | pipe.pl -o c1,c0 >"$visibleItems_ItemCount"
     # Match ckeys with holds with ckeys with visible copies.
     # Method: pipe all the cat keys with holds, merge with the list of visible item counts, and if a cat key with holds
     #  matches a cat key with visible copies, add the visible copy count, otherwise add a zero (0).
@@ -185,21 +194,21 @@ find_last_copies()
     # 1000045|2|1|1|
     # 1000056|7|3|7|
     [ "$DEBUG" == true ] && logit "merging hold and visible copy lists."
-    cat $merged_CKeyItemCountHoldCount | pipe.pl -0 $visibleItems_ItemCount -M c0:c0?c1.0 -P >$all_CKeyItemCountHoldCountVisibleCopyCount
+    pipe.pl -0 "$visibleItems_ItemCount" -M c0:c0?c1.0 -P <"$merged_CKeyItemCountHoldCount" >"$all_CKeyItemCountHoldCountVisibleCopyCount"
     # Find all the cat keys with 0 or 1 visible items.
     # Method: Stream all the ckeys with hold and visible copy counts, and output only those with less than $CIRC_COPIES visible copies.
     logit "generating list of last copies ($LAST_COPY_LIST)"
-    cat $all_CKeyItemCountHoldCountVisibleCopyCount | pipe.pl -C c3:le$CIRC_COPIES -P >$LAST_COPY_LIST
-    [ "$OUTPUT_CSV" == true ] && cat $LAST_COPY_LIST | pipe.pl -oc0,c1,c2,c3 -TCSV_UTF-8:'CKey,NumItems,NumTHolds,NumCircable' >${LAST_COPY_LIST}.csv
+    pipe.pl -C c3:le$CIRC_COPIES -P <"$all_CKeyItemCountHoldCountVisibleCopyCount" >"$LAST_COPY_LIST"
+    [ "$OUTPUT_CSV" == true ] && pipe.pl -oc0,c1,c2,c3 -TCSV_UTF-8:'CKey,NumItems,NumTHolds,NumCircable' <"$LAST_COPY_LIST" >"${LAST_COPY_LIST}.csv"
     [ -s "$LAST_COPY_LIST" ] || logerr "failed to create last copy list $LAST_COPY_LIST."
     if [ "$DEBUG" == false ]; then
-        rm $all_CKeyItemCount
-        rm $allActiveHolds_CKeyCount
-        rm $merged_CKeyItemCountHoldCount
-        rm $allItems_CKeyBCodeLocationItemCountHoldCount
-        rm $allVisibleItems_CKeyBCodeLocationItemCountHoldCount
-        rm $visibleItems_ItemCount
-        rm $all_CKeyItemCountHoldCountVisibleCopyCount
+        rm "$all_CKeyItemCount"
+        rm "$allActiveHolds_CKeyCount"
+        rm "$merged_CKeyItemCountHoldCount"
+        rm "$allItems_CKeyBCodeLocationItemCountHoldCount"
+        rm "$allVisibleItems_CKeyBCodeLocationItemCountHoldCount"
+        rm "$visibleItems_ItemCount"
+        rm "$all_CKeyItemCountHoldCountVisibleCopyCount"
     fi
 }
 
@@ -232,7 +241,6 @@ do
         ;;
     -h|--help)
         usage
-        exit 0
         ;;
     -i|--ignore)
         shift
@@ -261,7 +269,6 @@ do
         ;;
     -x|--xhelp)
         usage
-        exit 0
         ;;
     --)
         shift

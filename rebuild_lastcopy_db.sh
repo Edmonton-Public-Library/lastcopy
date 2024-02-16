@@ -3,7 +3,7 @@
 #
 # Bash shell script for project lastcopy
 # 
-#    Copyright (C) 2021  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2021 - 2024  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -27,20 +27,20 @@
 # Goals: check for data, and if exists truncate tables in order and reload data.
 #
 . ~/.bashrc
-APP=$(basename -s .sh $0)
+APP=$(basename -s .sh "$0")
 HOME_DIR=/home/ils
-WORKING_DIR=$HOME_DIR/last_copy
-VERSION="1.01.00"
-DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
-DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
+WORKING_DIR="$HOME_DIR/last_copy"
+VERSION="1.01.01"
+DB_PRODUCTION="$HOME_DIR/mysqlconfigs/lastcopy"
+DB_DEV="$HOME_DIR/mysqlconfigs/lastcopy_dev"
 DEBUG=false
-LOG=$WORKING_DIR/lastcopy_driver.log
-ALT_LOG=$WORKING_DIR/${APP}.log
+LOG="$WORKING_DIR/lastcopy_driver.log"
+ALT_LOG="$WORKING_DIR/${APP}.log"
 DB_CMD="mysql --defaults-file"
 IS_TEST=false
-SERIES_SQL=$WORKING_DIR/series.sql
-ITEMS_SQL=$WORKING_DIR/items.sql
-TITLES_SQL=$WORKING_DIR/titles.sql
+SERIES_SQL="$WORKING_DIR/series.sql"
+ITEMS_SQL="$WORKING_DIR/items.sql"
+TITLES_SQL="$WORKING_DIR/titles.sql"
 # List of all tables to truncate DO NOT change order or you will break referential integrity.
 ALL_TABLES=("last_copy_series_titles" "last_copy_catkey_series_names" "last_copy_series" "last_copy_items" "last_copy_titles") 
 TRUNCATE=false
@@ -56,7 +56,7 @@ Usage: $0 [-option]
  truncates the target last copy database (either production or test
  see --test for more information), then loads the data.
 
- -d, --debug: Turn on debugging messaging. Won't truncate tables
+ -d, --debug: Turn on debugging messaging. Wont truncate tables
               but will report the command that would have been run.
  -h, --help: display usage message and exit.
  -T, --Truncate: Truncate data in existing tables. Warning this could
@@ -74,15 +74,17 @@ EOFU!
 logit()
 {
     local message="$1"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] $message" | tee -a "$LOG" -a "$ALT_LOG"
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] **error: $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] **error: $message" | tee -a "$LOG" -a "$ALT_LOG"
     exit 1
 }
 
@@ -107,7 +109,6 @@ do
 		;;
     -h|--help)
         usage
-        exit 0
         ;;
     -T|--Truncate)
         [ "$DEBUG" == true ] && logit "truncating tables in database"
@@ -123,7 +124,6 @@ do
         ;;
     -x|--xhelp)
         usage
-        exit 0
         ;;
     --)
         shift
@@ -139,12 +139,10 @@ logit "== starting $0 version: $VERSION"
 MSG="Loading data to "
 if [ "$IS_TEST" == true ]; then
     DB_CMD="${DB_CMD}=${DB_DEV}"
-    MSG="$MSG "`grep "database" $DB_DEV`
-    ## Intentionally production because the test files are produced for accuracty.
-    ## Ironically, once this is in production you can change it to:
+    MSG="$MSG "$(grep "database" $DB_DEV)
 else
     DB_CMD="${DB_CMD}=${DB_PRODUCTION}"
-    MSG="$MSG "`grep "database" $DB_PRODUCTION`
+    MSG="$MSG "$(grep "database" $DB_PRODUCTION)
 fi
 logit "$MSG"
 # Truncate tables in this order.
@@ -157,7 +155,7 @@ logit "$MSG"
 ## last_copy_complete_statuses
 ## last_copy_statuses
 if [ "$DEBUG" == true ]; then
-    for table_name in ${ALL_TABLES[@]}; do
+    for table_name in "${ALL_TABLES[@]}"; do
         logit "DEBUG: $DB_CMD -e 'TRUNCATE TABLE $table_name;'"
     done
     logit "DEBUG: loading '$TITLES_SQL'"
@@ -165,9 +163,9 @@ if [ "$DEBUG" == true ]; then
     logit "DEBUG: loading '$SERIES_SQL'"
 else
     if [ "$TRUNCATE" == true ]; then
-        for table_name in ${ALL_TABLES[@]}; do
+        for table_name in "${ALL_TABLES[@]}"; do
             logit "truncating '$table_name'"
-            $DB_CMD -e "TRUNCATE TABLE $table_name;" 2>>$ALT_LOG
+            $DB_CMD -e "TRUNCATE TABLE $table_name;" 2>>"$ALT_LOG"
         done
     fi
     # Now add new data

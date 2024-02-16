@@ -1,10 +1,16 @@
-# lastcopy Readme
+# lastcopy
+Finds last copies of items in the ILS and reports important information such as number of holds, circ counts, current location, and user catagory 2.
+The data is converted to SQL and loaded into Apps-NG.
+
 ## TODO
-* Add usr_cat2
-* Add home location.
-* On-order items count as one available copy.
 * Titles with multiple call numbers should be included if the title as a whole, has less than 2 active copies.
 
+## 2024 -02-15
+* Refactored to modern bash syntax.
+* Added tests to scripts.
+* Added item cat2 and home location to lastcopy_compiler.sh.
+* Removed non-circ locations in lastcopy_compiler.sh.
+  
 ## 2021-11-22
 Turns out last copy is too late. By the time we are down to the last copy, staff may have deleted the holds, and the discard process will happily purge the record, and the title in the process.
 

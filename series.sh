@@ -3,7 +3,7 @@
 #
 # Bash shell script for project lastcopy
 # 
-#    Copyright (C) 2022  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2022 - 2024  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -32,14 +32,21 @@
 # ***           Edit these to suit your environment               *** #
 . ~/.bashrc
 #######################################################################
-APP=$(basename -s .sh $0)
-VERSION="1.02.01"
-WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
-# WORKING_DIR=/software/EDPL/Unicorn/EPLwork/anisbet/Discards/Test
-TMP_DIR=/tmp
-LOG=$WORKING_DIR/${APP}.log
+APP=$(basename -s .sh "$0")
+VERSION="1.02.02"
+HOSTNAME=$(hostname)
+if [ "$HOSTNAME" == "ubuntu" ]; then
+    WORKING_DIR=/home/anisbet/EPL/lastcopy
+    IS_TEST=true
+    TMP_DIR="."
+else
+    WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
+    IS_TEST=false
+    TMP_DIR="/tmp"
+fi
+LOG="$WORKING_DIR/${APP}.log"
 ALT_LOG=/dev/null
-SERIES_LIST=$WORKING_DIR/${APP}.lst
+SERIES_LIST="$WORKING_DIR/${APP}.lst"
 DEBUG=false
 SHOW_VARS=false
 OUTPUT_CSV=false
@@ -75,15 +82,17 @@ EOFU!
 logit()
 {
     local message="$1"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] $message" | tee -a "$LOG" -a "$ALT_LOG"
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
-    echo -e "[$time] **error: $message" | tee -a $LOG -a "$ALT_LOG"
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
+    echo -e "[$time] **error: $message" | tee -a "$LOG" -a "$ALT_LOG"
     exit 1
 }
 # Displays variables.
@@ -102,39 +111,46 @@ show_vars()
 # Finds titles with last, or near to last copies in circulation.
 compile_series()
 {
-    local allSeriesTitles=$TMP_DIR/${APP}_all_series_titles_ckey_series.lst
-    local onlySeriesTitles=$TMP_DIR/${APP}_only_series_ckey_series.lst
+    local allSeriesTitles="$TMP_DIR/${APP}_all_series_titles_ckey_series.lst"
+    local onlySeriesTitles="$TMP_DIR/${APP}_only_series_ckey_series.lst"
+    local test_data="23075|-|The chronicles of Prydain ; bk. 1\n23195|-|The chronicles of Prydain ; bk. 4\n2012344|-|Mistakes we both made ; vol. 7"
     # This is an expensive request to check how old the list is before starting again.
     if [ -s "$SERIES_LIST" ]; then
-        local yesterday=$(date -d 'now - 1 days' +%s)
-        local db_age=$(date -r "$SERIES_LIST" +%s)
+        local yesterday=''
+        yesterday=$(date -d 'now - 1 days' +%s)
+        local db_age=''
+        db_age=$(date -r "$SERIES_LIST" +%s)
         if (( db_age >= yesterday )); then
             # keep the list.
             logit "$SERIES_LIST is less than a day old, using the existing catalog selection."
-            return
+            [ "$IS_TEST" == false ] && return
+            logit "TEST MODE: continuing."
         fi
     fi
     # Find all the titles and their 380 and 490 fields.
     logit "selecting titles and information in the 380 and 490 fields."
-    selcatalog -oCe -e380,490 2>/dev/null >$allSeriesTitles
+    if [ "$IS_TEST" == true ]; then
+        echo -e "$test_data" >"$allSeriesTitles"
+    else
+        selcatalog -oCe -e380,490 2>/dev/null >"$allSeriesTitles"
+    fi
     [ -s "$allSeriesTitles" ] || logerr "no titles itendified."
     # The list should look as follows.
     # 2012345|-|Mistakes we both made ; vol. 9
     # Use either the 380 or 490 as the actual field. Cataloguers seem to prefer the 490.
     #  Once selected remove the text after the ';' since it varies sometimes by volume.
     logit "starting selection of titles with series info: $onlySeriesTitles"
-    cat $allSeriesTitles | pipe.pl -B c1,c2 | pipe.pl -O c2,c1 | pipe.pl -o c0,c2 >$onlySeriesTitles
+    pipe.pl -B c1,c2 <"$allSeriesTitles" | pipe.pl -O c2,c1 | pipe.pl -o c0,c2 >"$onlySeriesTitles"
     # Remove any text after any ' ; ' which is used as the delimiter to the specific volumne information, and get rid of punctuation.
     logit "cleaning series info: $SERIES_LIST"
-    cat $onlySeriesTitles | pipe.pl -W' ; ' -o c0 | pipe.pl -e c1:normal_P -P >$SERIES_LIST
+    pipe.pl -W' ; ' -o c0 <"$onlySeriesTitles" | pipe.pl -e c1:normal_P -P >"$SERIES_LIST"
+    [ -s "$SERIES_LIST" ] || logerr "failed to series list $SERIES_LIST." 
     if [ "$OUTPUT_CSV" == true ]; then
-        cat $SERIES_LIST | pipe.pl -oc0,c1 -TCSV_UTF-8:'CKey,Series' >${SERIES_LIST}.csv
+        pipe.pl -oc0,c1 -TCSV_UTF-8:'CKey,Series' <"$SERIES_LIST" >"${SERIES_LIST}.csv"
     fi
-
-    [ -s "$SERIES_LIST" ] || logerr "failed to series list $SERIES_LIST."
     if [ "$DEBUG" == false ]; then
-        rm $allSeriesTitles
-        rm $onlySeriesTitles
+        rm "$allSeriesTitles"
+        rm "$onlySeriesTitles"
     fi
 }
 
@@ -162,7 +178,6 @@ do
         ;;
     -h|--help)
         usage
-        exit 0
         ;;
     -l|--log)
         shift
@@ -185,7 +200,6 @@ do
         ;;
     -x|--xhelp)
         usage
-        exit 0
         ;;
     --)
         shift

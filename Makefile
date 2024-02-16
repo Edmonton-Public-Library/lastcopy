@@ -7,7 +7,7 @@
 #
 # Manages distribution of scripts to appropriate servers as required.
 #
-#    Copyright (C) 2022  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2022 - 2024  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #

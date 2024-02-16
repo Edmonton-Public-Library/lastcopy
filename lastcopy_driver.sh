@@ -3,7 +3,7 @@
 #
 # Bash shell script for project lastcopy
 # 
-#    Copyright (C) 2021  Andrew Nisbet, Edmonton Public Library
+#    Copyright (C) 2021 - 2024  Andrew Nisbet, Edmonton Public Library
 # The Edmonton Public Library respectfully acknowledges that we sit on
 # Treaty 6 territory, traditional lands of First Nations and Metis people.
 #
@@ -38,12 +38,12 @@
 HOME_DIR=/home/ils
 WORKING_DIR=$HOME_DIR/last_copy
 VERSION="1.02.02"
-DB_PRODUCTION=$HOME_DIR/mysqlconfigs/lastcopy
-DB_DEV=$HOME_DIR/mysqlconfigs/lastcopy_dev
+DB_PRODUCTION="$HOME_DIR/mysqlconfigs/lastcopy"
+DB_DEV="$HOME_DIR/mysqlconfigs/lastcopy_dev"
 ILS_WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 LASTCOPY_FILES="*.table"
 DEBUG=false
-LOG=$WORKING_DIR/lastcopy_driver.log
+LOG="$WORKING_DIR/lastcopy_driver.log"
 DB_CMD="mysql --defaults-file"
 IS_TEST=false
 # These locations put a title at risk of not having circulatable copies.
@@ -53,7 +53,7 @@ EXCLUDE_LOCATIONS="INTERNET,HOME"
 EXCLUDE_ITYPES="ILL-BOOK,E-RESOURCE"
 PRODUCTION_ILS='sirsi@edpl.sirsidynix.net'
 TEST_ILS='sirsi@edpltest.sirsidynix.net'
-SSH_SERVER=$PRODUCTION_ILS
+SSH_SERVER="$PRODUCTION_ILS"
 SERIES_AWK="$WORKING_DIR/bin/series.awk"
 ITEMS_AWK="$WORKING_DIR/bin/items.awk"
 TITLES_AWK="$WORKING_DIR/bin/titles.awk"
@@ -72,7 +72,7 @@ Usage: $0 [-options]
  and loads it into production appsng database by default, or appsng_dev
  if --test is used.
 
- When fetching files, they are SCP'd from either production or test ILS,
+ When fetching files, they are SCPed from either production or test ILS,
  and then compiled into SQL statements. If the local files are less than
  an hour old they are used, and fresh ones copied over otherwise.
 
@@ -95,14 +95,16 @@ EOFU!
 logit()
 {
     local message="$1"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
     echo -e "[$time] $message" | tee -a $LOG
 }
 # Logs messages as an error and exits with status code '1'.
 logerr()
 {
     local message="${1} exiting!"
-    local time=$(date +"%Y-%m-%d %H:%M:%S")
+    local time=''
+    time=$(date +"%Y-%m-%d %H:%M:%S")
     echo -e "[$time] **error: $message" | tee -a $LOG
     exit 1
 }
@@ -138,9 +140,11 @@ collect_data()
     ## Figure out what data we need, collect it from the lastcopy, grubby, and series
     ## lst files on the ILS.
     if [ -s "$appsng_items" ]; then
-        local an_hour_ago=$(date -d 'now - 1 hours' +%s)
-        local src_file_age=$(date -r "$appsng_items" +%s)
-        if (( $src_file_age <= $an_hour_ago )); then
+        local an_hour_ago=''
+        an_hour_ago=$(date -d 'now - 1 hours' +%s)
+        local src_file_age=''
+        src_file_age=$(date -r "$appsng_items" +%s)
+        if (( "$src_file_age" <= "$an_hour_ago" )); then
             logit "copying data from the ILS."
             if [ "$COMPILE_FRESH_TABLES" == true ]; then
                 if ! ssh $SSH_SERVER "$RUN_TABLE_COMPILER"; then
@@ -213,7 +217,6 @@ do
 		;;
     -h|--help)
         usage
-        exit 0
         ;;
     -t|--test)
         [ "$DEBUG" == true ] && logit "using test database"
@@ -229,7 +232,6 @@ do
         ;;
     -x|--xhelp)
         usage
-        exit 0
         ;;
     --)
         shift
@@ -245,14 +247,14 @@ logit "== starting $0 version: $VERSION"
 MSG="Loading data to "
 if [ "$IS_TEST" == true ]; then
     DB_CMD="${DB_CMD}=${DB_DEV}"
-    MSG="$MSG "`grep "database" $DB_DEV`
+    MSG="$MSG "$(grep "database" $DB_DEV)
     ## Intentionally production because the test files are produced for accuracty.
     ## Ironically, once this is in production you can change it to:
     # SSH_SERVER=$TEST_ILS
     SSH_SERVER=$PRODUCTION_ILS
 else
     DB_CMD="${DB_CMD}=${DB_PRODUCTION}"
-    MSG="$MSG "`grep "database" $DB_PRODUCTION`
+    MSG="$MSG "$(grep "database" $DB_PRODUCTION)
     SSH_SERVER=$PRODUCTION_ILS
 fi
 [ "$SHOW_VARS" == true ] && show_vars
