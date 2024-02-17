@@ -46,11 +46,6 @@ DEBUG=false
 LOG="$WORKING_DIR/lastcopy_driver.log"
 DB_CMD="mysql --defaults-file"
 IS_TEST=false
-# These locations put a title at risk of not having circulatable copies.
-# Don't select titles where all the items on a title have these locations.
-EXCLUDE_LOCATIONS="INTERNET,HOME"
-# Don't select titles where all the items on a title have these item types.
-EXCLUDE_ITYPES="ILL-BOOK,E-RESOURCE"
 PRODUCTION_ILS='sirsi@edpl.sirsidynix.net'
 TEST_ILS='sirsi@edpltest.sirsidynix.net'
 SSH_SERVER="$PRODUCTION_ILS"

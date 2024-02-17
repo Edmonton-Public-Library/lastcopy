@@ -49,6 +49,7 @@ APPSNG_TITLES="$WORKING_DIR/last_copy_titles.table"
 APPSNG_ITEMS="$WORKING_DIR/last_copy_items.table"
 APPSNG_SERIES="$WORKING_DIR/last_copy_series.table"
 NON_CIRC_LOCATIONS="UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|ON-ORDER|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL"
+IGNORE_TYPES='UNKNOWN|ILL-BOOK|AV|AV-EQUIP|MICROFORM|NEWSPAPER|EQUIPMENT|E-RESOURCE|JCASSETTE|RFIDSCANNR'
 ###############################################################################
 # Display usage message.
 # param:  none
@@ -124,7 +125,6 @@ compile_lastcopy_lists()
     tmpfile=$(mktemp "$WORKING_DIR/${APP}-script-1.XXXXXX")
     # Add a '-1' to indicate that number of title holds is not collected for titles that are not last copy titles.
     # Any other integer is mis-leading.
-    # selcatalog -oCtRyF 2>/dev/null | pipe.pl -m c4:"-1\|#" -P >"$tmpfile"
     selcatalog -oCtRyFe -e092,099 2>/dev/null | pipe.pl -m c4:"-1\|#" -tc4 -P >"$tmpfile"
     # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|-1|epl000001934|-|E MAR|
     logit "appending last-copy title records."
@@ -135,7 +135,7 @@ compile_lastcopy_lists()
     pipe.pl -dc0 <"$tmpfile" >"$APPSNG_TITLES"
     logit "collecting fiction or nonfiction values."
     tmpfile2=$(mktemp "$WORKING_DIR/${APP}-script-2.XXXXXX")
-    # Collect the fiction or non-fiction values of titles. It's the 33 character in the 008 field. Some titles don't have it tho.
+    # Collect the fiction or non-fiction values of titles. It's the 33rd character in the 008 field (#34 for pipe.pl). Some titles don't have it tho.
     selcatalog -iC -oCe -e008 <"$APPSNG_TITLES" 2>/dev/null | pipe.pl -mc1:_________________________________#_ -oc0,c1 -P >"$tmpfile2"
     # This places 'n' for non-fiction and 'y' for is_fiction in the last column in the last_copy_titles.table file.
     pipe.pl -0"$tmpfile2" -Mc0:c0?c1.n -P <"$APPSNG_TITLES" | pipe.pl -fc8:0.1?y.n >"$tmpfile"
@@ -156,7 +156,8 @@ compile_lastcopy_lists()
     logit "compiling item information."
     # Add Call number (shelving key).
     # selitem -o N-CallNum(ckey,callNum),B-BCode,C-CatKey,d-TotalChrgs,m-CurrLoc,t-iType,h-CopyHoldNum,a-LastActivity,n-LastCharged,l-HomeLoc,g-ItemCat2
-    selitem -iC -oNBCdmthanlg <"$LASTCOPY_TITLES" 2>/dev/null | pipe.pl -Gc5:"($NON_CIRC_LOCATIONS)" | selcallnum -iN -oSD 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >"$APPSNG_ITEMS"
+    #                       0, 1,          2,      3,       4,           5,        6,        7,            8,             9,           10,       11
+    selitem -iC -oNBCdmthanlg <"$LASTCOPY_TITLES" 2>/dev/null | pipe.pl -Gc5:"($NON_CIRC_LOCATIONS)", c6:"($IGNORE_TYPES)" | selcallnum -iN -oSD 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >"$APPSNG_ITEMS"
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|TEENNCOLL|YA|Easy readers A PBK|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|TEENVIDGME|ADULT|Easy readers A PBK|
     ## Series information.
