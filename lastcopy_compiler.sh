@@ -157,7 +157,7 @@ compile_lastcopy_lists()
     # Add Call number (shelving key).
     # selitem -o N-CallNum(ckey,callNum),B-BCode,C-CatKey,d-TotalChrgs,m-CurrLoc,t-iType,h-CopyHoldNum,a-LastActivity,n-LastCharged,l-HomeLoc,g-ItemCat2
     #                       0, 1,          2,      3,       4,           5,        6,        7,            8,             9,           10,       11
-    selitem -iC -oNBCdmthanlg <"$LASTCOPY_TITLES" 2>/dev/null | pipe.pl -Gc5:"($NON_CIRC_LOCATIONS)", c6:"($IGNORE_TYPES)" | selcallnum -iN -oSD 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >"$APPSNG_ITEMS"
+    selitem -iC -oNBCdmthanlg <"$LASTCOPY_TITLES" 2>/dev/null | pipe.pl -G"c5:($NON_CIRC_LOCATIONS),c6:($IGNORE_TYPES)" | selcallnum -iN -oSD 2>/dev/null | pipe.pl -tc0 -mc6:'####-##-##',c7:'####-##-##' >"$APPSNG_ITEMS"
     # 31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|TEENNCOLL|YA|Easy readers A PBK|
     # 31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|TEENVIDGME|ADULT|Easy readers A PBK|
     ## Series information.
