@@ -1,12 +1,12 @@
 #!usr/bin/env awk
-# Version: 1.2.1 - Added homelocation, and item_cat2 before the call number (at the end).
+# Version: 1.2.2 - Change 'item_cat2' to 'audience'.
 ## Create MySQL insert statements for items.
 # Can be tested by the following instructions.
 # 1) Create a file called 'test.data' with: 
 #   echo -e "31221100061618|1000009|0|AUDIOBOOK|AUDBK|0|2021-12-15|2021-12-06|TEENNCOLL|YA|Easy readers A PBK|\n31221100997456|1000012|1|DISCARD|JBOOK|0|2022-03-02|2022-03-02|TEENVIDGME|ADULT|Easy readers A PBK|\n" > test.data
 # 2) awk -f items.awk test.data
 # 3) Check output:
-#    REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, home_location, item_cat2, call_number) VALUES 
+#    REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, home_location, audience, call_number) VALUES 
 #    (2147483647,1000009,0,'AUDIOBOOK','AUDBK',0,'2021-12-15','2021-12-06','TEENNCOLL','YA','Easy readers A PBK'),
 #    (2147483647,1000012,1,'DISCARD','JBOOK',0,'2022-03-02','2022-03-02','TEENVIDGME','ADULT','Easy readers A PBK');
 #    COMMIT;
@@ -18,7 +18,7 @@ BEGIN {
     # 31221073208600|498521|0|DISCARD|JDVD21|0|2017-04-09|2017-04-03|TPBK|YA|Easy readers A PBK|
     # Added an empty field for 'notes' because the database doesn't allow empty values (yet)
 
-    insertStatement = "REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, home_location, item_cat2, call_number) VALUES ";
+    insertStatement = "REPLACE INTO last_copy_items (id, last_copy_title_id, checkouts, current_location, item_type, copy_holds, last_active, last_charged, home_location, audience, call_number) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
