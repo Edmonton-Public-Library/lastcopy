@@ -1,14 +1,12 @@
 #!usr/bin/env awk
-# Version: 2.03 - Some titles don't have call numbers, so if they are missing use null instead.
+# Version: 2.03.01 - Added today's date to titles.
 # Process title info into SQL for loading into appsng MySQL database.
 BEGIN {
     FS="|";
-    # Version 2.02
     # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|
-    # Version 2.03
     # 1000044|Caterpillar to butterfly / Laura Marsh|Marsh, Laura F.|2012|1|epl000001934|-|E MAR|n|
     # @TODO: The column for fiction is TO BE DETERMINED!!! Change before deploying.
-    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number, is_fiction) VALUES ";
+    insertStatement = "REPLACE INTO last_copy_titles (id, title, author, publication_year, title_holds, title_control_number, call_number, is_fiction, ils_updated_at) VALUES ";
     print insertStatement;
     count = -1;
     # The Test ILS seems to need smaller chunks.
