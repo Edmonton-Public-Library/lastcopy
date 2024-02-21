@@ -35,8 +35,8 @@
 #######################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh "$0")
-# Added is_fiction to title collection.
-VERSION="1.02.01"
+# Added JOTHLANGBK|OTHLANGBK|PERIODICAL|JPERIODICL item type filtering.
+VERSION="1.02.02"
 DEBUG=false
 LOG="$WORKING_DIR/${APP}.log"
 ALT_LOG=/dev/null
@@ -49,7 +49,7 @@ APPSNG_TITLES="$WORKING_DIR/last_copy_titles.table"
 APPSNG_ITEMS="$WORKING_DIR/last_copy_items.table"
 APPSNG_SERIES="$WORKING_DIR/last_copy_series.table"
 NON_CIRC_LOCATIONS="UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|ON-ORDER|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL"
-IGNORE_TYPES='UNKNOWN|ILL-BOOK|AV|AV-EQUIP|MICROFORM|NEWSPAPER|EQUIPMENT|E-RESOURCE|JCASSETTE|RFIDSCANNR'
+IGNORE_TYPES='UNKNOWN|ILL-BOOK|AV|AV-EQUIP|MICROFORM|NEWSPAPER|EQUIPMENT|E-RESOURCE|JCASSETTE|RFIDSCANNR|JOTHLANGBK|OTHLANGBK|PERIODICAL|JPERIODICL'
 ###############################################################################
 # Display usage message.
 # param:  none
