@@ -13,6 +13,8 @@ BEGIN {
     count = -1;
     # The Test ILS seems to need smaller chunks.
     max_query_lines = 1500;
+    # Add today's date to all records.
+    "date +\"%Y-%m-%d\"" | getline date;
 }
 
 
@@ -72,7 +74,7 @@ BEGIN {
         
         
         # The output string _may_ have some NULL values which are not quoted so build the string piece by piece
-        my_query = "("$1", '"title"', '"author"', "publication_year", "title_holds", '"$6"', "call_num", "fiction")";
+        my_query = "("$1", '"title"', '"author"', "publication_year", "title_holds", '"$6"', "call_num", "fiction", '"date"')";
         # Stop extra new line using printf.
         printf "%s",my_query;
         # Only update the counts that are actually intended to be loaded.
