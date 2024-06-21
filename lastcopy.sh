@@ -39,7 +39,7 @@
 #######################################################################
 APP=$(basename -s .sh "$0")
 # This version removes ON-ORDER from non-circ locations filter.
-VERSION="1.03.03"
+VERSION="1.03.04"
 HOSTNAME=$(hostname)
 if [ "$HOSTNAME" == "ubuntu" ]; then
     WORKING_DIR="."
@@ -55,7 +55,7 @@ DEBUG=false
 CIRC_COPIES=1
 # Items in these locations don't count agains charges.
 # Note that DO NOT include a tilde for negation, that's done later during selection.
-IGNORE_TYPES='UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR'
+IGNORE_TYPES='UNKNOWN,ILL-BOOK,AV,AV-EQUIP,MICROFORM,NEWSPAPER,EQUIPMENT,E-RESOURCE,JCASSETTE,RFIDSCANNR,JOTHLANGBK,OTHLANGBK,PERIODICAL,JPERIODICL'
 SHOW_VARS=false
 OUTPUT_CSV=false
 ####### Functions ########
