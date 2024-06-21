@@ -38,8 +38,8 @@
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh "$0")
-# This version includes testing code clean up for modern bash syntax.
-VERSION="1.03.02"
+# This version removes ON-ORDER from non-circ locations filter.
+VERSION="1.03.03"
 HOSTNAME=$(hostname)
 if [ "$HOSTNAME" == "ubuntu" ]; then
     WORKING_DIR="."
@@ -50,7 +50,7 @@ LOG="$WORKING_DIR/${APP}.log"
 ALT_LOG=/dev/null
 LAST_COPY_LIST="$WORKING_DIR/${APP}.lst"
 # Used as a regex with pipe.pl
-NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|ON-ORDER|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL'
+NON_CIRC_LOCATIONS='UNKNOWN|MISSING|LOST|DISCARD|LOST-PAID|LONGOVRDUE|CANC_ORDER|INCOMPLETE|DAMAGE|BARCGRAVE|NON-ORDER|LOST-ASSUM|LOST-CLAIM|STOLEN|NOF|ILL'
 DEBUG=false
 CIRC_COPIES=1
 # Items in these locations don't count agains charges.

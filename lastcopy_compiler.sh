@@ -35,8 +35,8 @@
 #######################################################################
 WORKING_DIR=/software/EDPL/Unicorn/EPLwork/cronjobscripts/LastCopy
 APP=$(basename -s .sh "$0")
-# Added JOTHLANGBK|OTHLANGBK|PERIODICAL|JPERIODICL item type filtering.
-VERSION="1.02.02"
+# This version removes ON-ORDER from non-circ locations filter.
+VERSION="1.02.03"
 DEBUG=false
 LOG="$WORKING_DIR/${APP}.log"
 ALT_LOG=/dev/null
