@@ -35,6 +35,7 @@
 # without assuming any environment settings and we need to use sirsi's.
 #######################################################################
 # ***           Edit these to suit your environment               *** #
+# shellcheck disable=SC1090
 . ~/.bashrc
 #######################################################################
 APP=$(basename -s .sh "$0")
